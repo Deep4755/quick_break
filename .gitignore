@@ -1,0 +1,8 @@
+node_modules
+.env
+dist
+build
+coverage
+.vscode
+FRONTEND/node_modules
+BACKEND/node_modules
