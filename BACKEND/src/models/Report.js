@@ -8,6 +8,13 @@ const reportSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Optional: logged-in user who submitted the report
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     cleanlinessRating: { type: Number, min: 1, max: 5, required: true },
 
     busyLevel: {

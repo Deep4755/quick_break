@@ -7,12 +7,16 @@ const {
   getStationById,
   createStation,
   deleteStation,
+  searchStations,
 } = require("../controllers/serviceStationController");
 
 const { seedStations } = require("../utils/seedStations");
 
 // Seed (demo)
 router.post("/seed", seedStations);
+
+// Search by name/operator/address — must be before /:id to avoid conflict
+router.get("/search", searchStations);
 
 // Normal routes
 router.get("/", getAllStations);

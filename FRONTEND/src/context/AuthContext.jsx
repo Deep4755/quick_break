@@ -5,11 +5,12 @@ import api from "../api/axios";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser]   = useState(null);
   const [token, setToken] = useState(localStorage.getItem("qb_token") || "");
+  const [isGuest, setIsGuest] = useState(localStorage.getItem("qb_guest") === "true");
   const [loading, setLoading] = useState(false);
 
-  // whenever token changes, attach to axios
+  // Attach / remove token from axios on change
   useEffect(() => {
     if (token) {
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -20,27 +21,24 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
-  // optional: restore user from localStorage too
+  // Restore user from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("qb_user");
-    if (savedUser && !user) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        // ignore
-      }
+    const saved = localStorage.getItem("qb_user");
+    if (saved && !user) {
+      try { setUser(JSON.parse(saved)); } catch { /* ignore */ }
     }
-  }, [user]);
+  }, []);
 
   const register = async (name, email, password) => {
     setLoading(true);
     try {
       const res = await authApi.register({ name, email, password });
       const { token: t, user: u } = res.data;
-
       setToken(t);
       setUser(u);
+      setIsGuest(false);
       localStorage.setItem("qb_user", JSON.stringify(u));
+      localStorage.removeItem("qb_guest");
       return res.data;
     } finally {
       setLoading(false);
@@ -52,35 +50,47 @@ export function AuthProvider({ children }) {
     try {
       const res = await authApi.login({ email, password });
       const { token: t, user: u } = res.data;
-
       setToken(t);
       setUser(u);
+      setIsGuest(false);
       localStorage.setItem("qb_user", JSON.stringify(u));
+      localStorage.removeItem("qb_guest");
       return res.data;
     } finally {
       setLoading(false);
     }
   };
 
+  const continueAsGuest = () => {
+    setIsGuest(true);
+    setUser(null);
+    setToken("");
+    localStorage.setItem("qb_guest", "true");
+    localStorage.removeItem("qb_token");
+    localStorage.removeItem("qb_user");
+  };
+
   const logout = () => {
     setUser(null);
     setToken("");
+    setIsGuest(false);
     localStorage.removeItem("qb_user");
     localStorage.removeItem("qb_token");
+    localStorage.removeItem("qb_guest");
   };
 
-  const value = useMemo(
-    () => ({
-      user,
-      token,
-      loading,
-      isLoggedIn: !!token,
-      register,
-      login,
-      logout,
-    }),
-    [user, token, loading]
-  );
+  const value = useMemo(() => ({
+    user,
+    token,
+    loading,
+    isGuest,
+    isLoggedIn: !!token,
+    isAuthenticated: !!token || isGuest, // can access browsing pages
+    register,
+    login,
+    logout,
+    continueAsGuest,
+  }), [user, token, loading, isGuest]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

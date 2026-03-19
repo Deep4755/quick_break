@@ -5,9 +5,10 @@ exports.protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
+    // No token — allow through as anonymous (req.user will be undefined)
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401);
-      throw new Error("Not authorized, token missing");
+      req.user = null;
+      return next();
     }
 
     const token = authHeader.split(" ")[1];
@@ -19,10 +20,13 @@ exports.protect = async (req, res, next) => {
       throw new Error("Not authorized, user not found");
     }
 
-    req.user = user; // ✅ attach logged-in user to request
+    req.user = user;
     next();
   } catch (err) {
-    res.status(401);
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      res.status(401);
+      return next(new Error("Not authorized, invalid token"));
+    }
     next(err);
   }
 };

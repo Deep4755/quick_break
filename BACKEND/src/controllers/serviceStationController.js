@@ -1,8 +1,5 @@
 const ServiceStation = require("../models/ServiceStation");
 const Report = require("../models/Report");
-
-const { searchNearbyServices } = require("../services/tomtomService");
-const { findPlaceDetails } = require("../services/googlePlacesService");
 // Helper: safely convert to number
 const toNumber = (val, fallback) => {
   const n = Number(val);
@@ -57,204 +54,101 @@ exports.getAllStations = async (req, res, next) => {
 
 /**
  * GET /api/service-stations/nearby?lat=51.5&lng=-0.12&radiusKm=10
- * Returns nearest stations within radius using Geo query
+ * Returns nearest stations within radius using Geo query.
+ * If fewer than MIN_RESULTS found, auto-widens radius up to MAX_RADIUS_KM.
  */
 exports.getNearbyStations = async (req, res, next) => {
   try {
-    const lat = toNumber(req.query.lat, null);
-    const lng = toNumber(req.query.lng, null);
-    const radiusKm = toNumber(req.query.radiusKm, 20);
+    const lat      = toNumber(req.query.lat, null);
+    const lng      = toNumber(req.query.lng, null);
+    const radiusKm = toNumber(req.query.radiusKm, 10);
 
     if (lat === null || lng === null) {
       res.status(400);
       throw new Error("lat and lng are required query params");
     }
 
-    // Optional facilities filter: /nearby?facilities=fuel,ev
-    const facilitiesParam = req.query.facilities; // "fuel,ev"
-    let facilitiesFilter = null;
+    const facilitiesParam = req.query.facilities;
+    let facilitiesFilter  = null;
     let selectedFacilities = [];
 
     if (facilitiesParam) {
-      const facilitiesArr = facilitiesParam
-        .split(",")
-        .map((x) => x.trim().toLowerCase())
-        .filter(Boolean);
-
-      if (facilitiesArr.length) {
-        facilitiesFilter = { $all: facilitiesArr };
-        selectedFacilities = facilitiesArr;
-      }
-    }
-    console.log(`[getNearbyStations] received facilitiesParam=${facilitiesParam} parsed=${JSON.stringify(selectedFacilities)}`);
-
-    const maxDistanceMeters = radiusKm * 1000;
-
-    const mongoQuery = {
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: [lng, lat] },
-          $maxDistance: maxDistanceMeters,
-        },
-      },
-    };
-
-    if (facilitiesFilter) mongoQuery.facilities = facilitiesFilter;
-
-    // ✅ 1) DB-first
-    let stations = await ServiceStation.find(mongoQuery).limit(50);
-    console.log(`[getNearbyStations] mongo query returned ${stations.length} station(s)`);
-    if (stations.length > 0) {
-      console.log(`[getNearbyStations] returning ${stations.length} DB result(s)`);
-      return res.status(200).json(stations);
+      const arr = facilitiesParam.split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
+      if (arr.length) { facilitiesFilter = { $all: arr }; selectedFacilities = arr; }
     }
 
-    // ✅ 2) TomTom fallback (limit small to avoid too many reverse calls)
-    const tomtomData = await searchNearbyServices({ lat, lng, radiusKm, limit: 12 });
-    const results = tomtomData?.results || [];
+    console.log(`[getNearbyStations] lat=${lat} lng=${lng} radiusKm=${radiusKm} facilities=${facilitiesParam || "none"}`);
 
-    const { extractFacilitiesFromTomtomResult } = require("../utils/facilityMapper");
+    const MIN_RESULTS   = 3;
+    // Build radius steps: always start with user's chosen radius, then widen
+    const RADIUS_STEPS = Array.from(new Set([radiusKm, 25, 50, 100, 200].filter(r => r >= radiusKm)));
 
-    // ✅ 3) Map TomTom -> our schema (TomTom used only for geospatial results)
-    const mapped = [];
+    let stations = [];
+    let usedFallback = false;
 
-    for (const r of results) {
-      const name = r.poi?.name || r.address?.freeformAddress || "Service Station";
-      // Prefer TomTom freeformAddress; leave null if not present
-      const address = r.address?.freeformAddress || null;
-      const coords = r.position ? [r.position.lon, r.position.lat] : null;
-      if (!coords) continue;
+    for (const r of RADIUS_STEPS) {
+      const maxDistanceMeters = r * 1000;
 
-      // Try to extract motorway from provided address first
-      let motorway = extractMotorway(address);
-
-      const operator = r.poi?.brands?.[0]?.name || guessOperator(name) || null;
-
-      // Extract facilities using utility (includes operator enrichment)
-      let facilities = extractFacilitiesFromTomtomResult(r);
-
-      mapped.push({
-        tomtomId: r.id || null,
-        name,
-        motorway: motorway || null,
-        operator: operator || null,
-        address: address || null,
-        facilities, // [] if none
-        location: { type: "Point", coordinates: coords },
-      });
-    }
-
-    // ✅ 3b) Enrich top mapped results (limit 10) using Google Places and merge back
-    const enrichedMapped = [...mapped];
-    const toEnrich = mapped.slice(0, 10);
-    await Promise.all(
-      toEnrich.map(async (doc, idx) => {
-        try {
-          const latE = doc.location.coordinates[1];
-          const lngE = doc.location.coordinates[0];
-          const details = await findPlaceDetails({ lat: latE, lng: lngE, name: doc.name, radiusMeters: 150 });
-          if (!details) return;
-
-          // Map google types -> facilities
-          const typeToFacility = {
-            gas_station: "fuel",
-            restaurant: "food",
-            cafe: "food",
-            meal_takeaway: "food",
-            parking: "parking",
-            electric_vehicle_charging_station: "ev",
-            convenience_store: "shop",
-            restroom: "toilets",
-          };
-
-          const googleFacilities = (details.types || []).map((t) => typeToFacility[t]).filter(Boolean);
-
-          const mergedFacilities = Array.from(new Set([...(doc.facilities || []), ...googleFacilities]));
-
-          // pick a photo URL if available
-          const photoUrl = details.photoUrl || null;
-
-          // attach enrichment
-          enrichedMapped[idx] = {
-            ...doc,
-            facilities: mergedFacilities,
-            googlePlaceId: details.placeId || null,
-            rating: details.rating ?? null,
-            userRatingsTotal: details.user_ratings_total ?? null,
-            openNow: details.open_now ?? null,
-            photoUrl,
-            types: details.types ?? [],
-          };
-        } catch (e) {
-          // ignore per-item failures
-        }
-      })
-    );
-
-    // If user requested facilities filter, filter enriched results before caching
-    const filteredMapped = selectedFacilities.length
-      ? enrichedMapped.filter((doc) => selectedFacilities.every((f) => (doc.facilities || []).includes(f)))
-      : enrichedMapped;
-
-    // ✅ 4) Cache in Mongo using upsert (avoid duplicates). We set base doc on insert and set enrichment fields on every run.
-    const ops = enrichedMapped
-      .filter((x) => x.tomtomId)
-      .map((doc) => {
-        const enrichSet = {
-          facilities: doc.facilities ?? [],
-        };
-        if (doc.googlePlaceId !== undefined) enrichSet.googlePlaceId = doc.googlePlaceId;
-        if (doc.rating !== undefined) enrichSet.rating = doc.rating;
-        if (doc.opening_hours !== undefined) enrichSet.opening_hours = doc.opening_hours;
-        if (doc.types !== undefined) enrichSet.types = doc.types;
-        if (doc.photoUrl !== undefined) enrichSet.photoUrl = doc.photoUrl;
-        if (doc.userRatingsTotal !== undefined) enrichSet.userRatingsTotal = doc.userRatingsTotal;
-        if (doc.openNow !== undefined) enrichSet.openNow = doc.openNow;
-
-        const baseInsert = {
-          tomtomId: doc.tomtomId,
-          name: doc.name,
-          motorway: doc.motorway,
-          operator: doc.operator,
-          address: doc.address,
-          // DO NOT include `facilities` here to avoid conflicts between $setOnInsert and $set
-          location: doc.location,
-        };
-
-        return {
-          updateOne: {
-            filter: { tomtomId: doc.tomtomId },
-            update: { $setOnInsert: baseInsert, $set: enrichSet },
-            upsert: true,
+      try {
+        // Try $near first (requires 2dsphere index)
+        const mongoQuery = {
+          location: {
+            $near: {
+              $geometry: { type: "Point", coordinates: [lng, lat] },
+              $maxDistance: maxDistanceMeters,
+            },
           },
         };
-      });
+        if (facilitiesFilter) mongoQuery.facilities = facilitiesFilter;
 
-    if (ops.length) {
-      await ServiceStation.bulkWrite(ops, { ordered: false });
-    }
-
-    // If we applied a filter and used TomTom fallback, prefer returning DB documents
-    if (selectedFacilities.length) {
-      console.log(`[getNearbyStations] TomTom mapped ${enrichedMapped.length} items, filtered to ${filteredMapped.length}`);
-
-      // try to return DB documents for the filtered tomtomIds so frontend gets _id
-      const tomtomIds = filteredMapped.map((d) => d.tomtomId).filter(Boolean);
-      if (tomtomIds.length) {
-        const docs = await ServiceStation.find({ tomtomId: { $in: tomtomIds } }).limit(50);
-        console.log(`[getNearbyStations] returning ${docs.length} DB result(s) for tomtomIds`);
-        return res.status(200).json(docs);
+        stations = await ServiceStation.find(mongoQuery).limit(50);
+        console.log(`[getNearbyStations] $near radius=${r}km → ${stations.length} station(s)`);
+      } catch (nearErr) {
+        // $near failed (index not ready) — fall back to $geoWithin + manual sort
+        console.warn(`[getNearbyStations] $near failed (${nearErr.message}), using $geoWithin fallback`);
+        usedFallback = true;
+        const fallbackQuery = {
+          location: {
+            $geoWithin: {
+              $centerSphere: [[lng, lat], maxDistanceMeters / 6378100],
+            },
+          },
+        };
+        if (facilitiesFilter) fallbackQuery.facilities = facilitiesFilter;
+        stations = await ServiceStation.find(fallbackQuery).limit(50);
+        console.log(`[getNearbyStations] $geoWithin radius=${r}km → ${stations.length} station(s)`);
       }
 
-      // fallback: return the mapped objects (no _id) if no tomtomIds available
-      console.log(`[getNearbyStations] returning ${filteredMapped.length} TomTom filtered result(s) (no tomtomIds)`);
-      return res.status(200).json(filteredMapped);
+      // Stop widening once we have enough results
+      if (stations.length >= MIN_RESULTS) break;
     }
 
-    // ✅ 5) Return DB results (consistent response)
-    stations = await ServiceStation.find(mongoQuery).limit(50);
-    console.log(`[getNearbyStations] final DB query returned ${stations.length} station(s)`);
-    return res.status(200).json(stations);
+    // Sort by real distance ascending (needed when using $geoWithin fallback)
+    const haversineKm = (lat1, lon1, lat2, lon2) => {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+    stations = stations.slice().sort((a, b) => {
+      const [aLng, aLat] = a.location.coordinates;
+      const [bLng, bLat] = b.location.coordinates;
+      return haversineKm(lat, lng, aLat, aLng) - haversineKm(lat, lng, bLat, bLng);
+    });
+
+    // Attach computed distance to each station for frontend display
+    const stationsWithDistance = stations.map(s => {
+      const obj = s.toObject();
+      const [sLng, sLat] = obj.location.coordinates;
+      obj.distanceKm = parseFloat(haversineKm(lat, lng, sLat, sLng).toFixed(2));
+      obj.distanceMi = parseFloat((obj.distanceKm * 0.621371).toFixed(2));
+      return obj;
+    });
+
+    console.log(`[getNearbyStations] returning ${stationsWithDistance.length} station(s)`);
+    return res.status(200).json(stationsWithDistance);
+
   } catch (err) {
     next(err);
   }
@@ -319,6 +213,38 @@ exports.createStation = async (req, res, next) => {
     next(err);
   }
 };
+/**
+ * GET /api/service-stations/search?q=Heston
+ * Case-insensitive partial match on name, operator, address
+ */
+exports.searchStations = async (req, res, next) => {
+  try {
+    const q = (req.query.q || "").trim();
+    if (!q) {
+      res.status(400);
+      throw new Error("q (search query) is required");
+    }
+
+    const regex = new RegExp(q, "i"); // case-insensitive partial match
+
+    const stations = await ServiceStation.find({
+      $or: [
+        { name: regex },
+        { operator: regex },
+        { address: regex },
+        { motorway: regex },
+      ],
+    })
+      .limit(10)
+      .select("_id name operator address motorway location");
+
+    console.log(`[searchStations] query="${q}" found ${stations.length} result(s)`);
+    res.status(200).json(stations);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.deleteStation = async (req, res, next) => {
   try {
     const station = await ServiceStation.findById(req.params.id);

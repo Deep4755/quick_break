@@ -1,6 +1,6 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
-
+import Footer from "./components/Footer";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
@@ -12,53 +12,34 @@ import CreateReport from "./pages/CreateReport";
 
 export default function App() {
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Navbar />
+      <main className="flex-1" style={{ background: "#f0f4f0" }}>
       <Routes>
-        {/* public routes */}
-        <Route path="/login" element={<Login />} />
+        {/* Public auth routes */}
+        <Route path="/login"    element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* protected routes */}
-        <Route
-          path="/"
-          element={
-            <ProtectRoute>
-              <Home />
-            </ProtectRoute>
-          }
-        />
+        {/* Guest OR logged-in routes */}
+        <Route path="/" element={
+          <ProtectRoute requireAuth={false}><Home /></ProtectRoute>
+        } />
+        <Route path="/nearby" element={
+          <ProtectRoute requireAuth={false}><Nearby /></ProtectRoute>
+        } />
+        <Route path="/stations/:id" element={
+          <ProtectRoute requireAuth={false}><StationDetails /></ProtectRoute>
+        } />
 
-        <Route
-          path="/nearby"
-          element={
-            <ProtectRoute>
-              <Nearby />
-            </ProtectRoute>
-          }
-        />
+        {/* Logged-in only routes */}
+        <Route path="/reports/create" element={
+          <ProtectRoute requireAuth={true}><CreateReport /></ProtectRoute>
+        } />
 
-        <Route
-          path="/reports/create"
-          element={
-            <ProtectRoute>
-              <CreateReport />
-            </ProtectRoute>
-          }
-        />
-
-        <Route
-          path="/stations/:id"
-          element={
-            <ProtectRoute>
-              <StationDetails />
-            </ProtectRoute>
-          }
-        />
-
-        {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+      </main>
+      <Footer />
+    </div>
   );
 }

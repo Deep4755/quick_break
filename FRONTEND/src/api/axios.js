@@ -1,13 +1,17 @@
 import axios from "axios";
 
+// In production (Hostinger), VITE_API_URL is set to your live domain e.g. https://yourdomain.com/api
+// In development, falls back to localhost
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Attach token from localStorage for every request (keeps calls protected)
+// Attach JWT token from localStorage on every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("qb_token");
   if (token) {

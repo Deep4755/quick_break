@@ -1,1 +1,98 @@
 @import "tailwindcss";
+
+/* QuickBreak Design Tokens — Light Green Theme */
+:root {
+  --bg-base:        #f0f4f0;
+  --bg-card:        #ffffff;
+  --bg-card-alt:    #f5f7f5;
+  --bg-panel:       #e8f0e8;
+  --border:         #e5e7eb;
+  --border-hover:   #c8d5c8;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
+  --accent:         #1a7a4a;
+  --accent-hover:   #155f3a;
+  --btn-primary-from: #1a7a4a;
+  --btn-primary-to:   #22a05e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--bg-panel); border-radius: 3px; }
+
+/* Reusable utility classes */
+.qb-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.qb-input {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.qb-input::placeholder { color: var(--text-muted); }
+.qb-input:focus { border-color: var(--accent); }
+
+.qb-btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, var(--btn-primary-from), var(--btn-primary-to));
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.qb-btn-primary:hover { opacity: 0.9; }
+.qb-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.qb-btn-secondary {
+  width: 100%;
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qb-btn-secondary:hover { background: var(--bg-panel); }
+
+.qb-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* Ripple / ping animation for Bexxa wake-word rings */
+@keyframes ping {
+  75%, 100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}

@@ -2,14 +2,23 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function ProtectRoute({ children }) {
-  const { isLoggedIn, loading } = useAuth();
+/**
+ * requireAuth=true  → only real logged-in users (not guests)
+ * requireAuth=false → logged-in OR guest users allowed
+ */
+export default function ProtectRoute({ children, requireAuth = false }) {
+  const { isLoggedIn, isGuest, loading } = useAuth();
   const location = useLocation();
 
-  // optional: if your AuthContext checks localStorage on load
   if (loading) return null;
 
-  if (!isLoggedIn) {
+  // Guest-restricted pages (e.g. create report)
+  if (requireAuth && !isLoggedIn) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  // Pages that need at least guest or logged-in
+  if (!requireAuth && !isLoggedIn && !isGuest) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 

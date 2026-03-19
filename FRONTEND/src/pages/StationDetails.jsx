@@ -1,123 +1,132 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import stationApi from "../api/stationApi";
-import Loading from "../components/Loading";
+import { useAuth } from "../context/AuthContext";
+
+function Loading() {
+  return (
+    <div className="flex justify-center items-center py-16">
+      <div className="w-10 h-10 rounded-full border-2 animate-spin" style={{ borderColor: "#e5e7eb", borderTopColor: "#1a7a4a" }} />
+    </div>
+  );
+}
 
 export default function StationDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { isLoggedIn } = useAuth();
 
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
 
-  const getUserCoords = (timeoutMs = 3000) =>
-    new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      let settled = false;
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        resolve(null);
-      }, timeoutMs);
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        },
-        () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(null);
-        },
-        { enableHighAccuracy: false, timeout: timeoutMs }
-      );
-    });
-
-  const handleNavigate = async () => {
+  const handleNavigate = () => {
     const coords = station?.location?.coordinates;
     if (!coords) return;
-    const stationLat = Number(coords[1]);
-    const stationLng = Number(coords[0]);
-
-    try {
-      const user = await getUserCoords(3000);
-      if (user) {
-        const origin = `${user.latitude},${user.longitude}`;
-        const dest = `${stationLat},${stationLng}`;
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else {
-        const url = `https://www.google.com/maps/search/?api=1&query=${stationLat},${stationLng}`;
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-    } catch (err) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${stationLat},${stationLng}`;
-      window.open(url, "_blank", "noopener,noreferrer");
+    const [lng, lat] = coords;
+    if (!navigator.geolocation) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener");
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${pos.coords.latitude},${pos.coords.longitude}&destination=${lat},${lng}&travelmode=driving`;
+        window.open(url, "_blank", "noopener");
+      },
+      () => window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener"),
+      { timeout: 3000 }
+    );
   };
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError("");
-    stationApi
-      .details(id)
+    stationApi.details(id)
       .then((data) => setStation(data))
       .catch((err) => setError(err?.response?.data?.message || "Failed to load station"))
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loading /></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16" style={{ background: "#f0f4f0" }}>
+        <Loading />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#0b1120] to-[#020617] px-4 py-10 flex items-center justify-center">
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-xl p-8">
+    <div style={{ background: "#f0f4f0" }}>
+      <div className="max-w-3xl mx-auto px-6 py-10">
         {error ? (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#dc2626" }}>
+            {error}
+          </div>
         ) : (
           <>
-            <h2 className="text-2xl font-semibold text-white">{station?.name || "—"}</h2>
-            {station?.address && <p className="text-gray-300 mt-2">{station.address}</p>}
-            {station?.operator && <div className="mt-1 text-sm text-gray-300">Operator: {station.operator}</div>}
-            {station?.location?.coordinates && (
-              <div className="mt-1 text-xs text-gray-400">{`Lat: ${Number(station.location.coordinates[1]).toFixed(5)}, Lng: ${Number(station.location.coordinates[0]).toFixed(5)}`}</div>
-            )}
-
-            <div className="mt-6 space-y-4">
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                <h3 className="text-lg font-semibold text-white">Facilities</h3>
-                <div className="mt-2">
-                  {(station?.facilities || []).length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {(station?.facilities || []).map((f) => (
-                        <span
-                          key={f}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => navigate(`/nearby?facilities=${encodeURIComponent(f)}`)}
-                          onKeyDown={(e) => e.key === 'Enter' && navigate(`/nearby?facilities=${encodeURIComponent(f)}`)}
-                          className="text-xs text-white/80 rounded-full bg-white/10 border border-white/10 px-2 py-1 cursor-pointer"
-                        >
-                          {f}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 text-sm">No facilities information available.</p>
+            <div className="rounded-2xl p-6 mb-5" style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-2xl font-bold" style={{ color: "#1a1a1a" }}>{station?.name}</h1>
+                  {station?.operator && (
+                    <p className="text-sm mt-1 font-medium" style={{ color: "#1a7a4a" }}>{station.operator}</p>
+                  )}
+                  {station?.address && (
+                    <p className="text-sm mt-2" style={{ color: "#4b5563" }}>{station.address}</p>
                   )}
                 </div>
+                {station?.motorway && (
+                  <span className="text-sm px-3 py-1 rounded-full flex-shrink-0" style={{ background: "rgba(26,122,74,0.1)", color: "#1a7a4a", border: "1px solid rgba(26,122,74,0.2)" }}>
+                    {station.motorway}
+                  </span>
+                )}
               </div>
+              {(station?.avgCleanliness > 0 || station?.lastStatus?.parkingStatus) && (
+                <div className="flex flex-wrap gap-3 mt-4 pt-4" style={{ borderTop: "1px solid #e5e7eb" }}>
+                  {station.avgCleanliness > 0 && (
+                    <div className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "#f5f7f5", color: "#4b5563" }}>
+                      Avg Cleanliness: <span className="font-semibold" style={{ color: "#1a1a1a" }}>{station.avgCleanliness}/5</span>
+                    </div>
+                  )}
+                  {station.lastStatus?.parkingStatus && (
+                    <div className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "#f5f7f5", color: "#4b5563" }}>
+                      Parking: <span className="font-semibold" style={{ color: "#1a1a1a" }}>{station.lastStatus.parkingStatus}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-              <div className="flex gap-3 items-center">
-                <button onClick={() => navigate(-1)} className="px-4 py-2 rounded-xl bg-white/5 border border-white/20 text-white hover:bg-white/10">Back</button>
-                <button onClick={() => navigate('/reports/create', { state: { stationId: id } })} className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold hover:opacity-90">Create Report</button>
-                <button onClick={handleNavigate} className="ml-auto px-4 py-2 rounded-xl bg-white/5 border border-white/20 text-white hover:bg-white/10">Navigate</button>
+            {(station?.facilities || []).length > 0 && (
+              <div className="rounded-2xl p-5 mb-5" style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}>
+                <h3 className="text-sm font-semibold mb-3" style={{ color: "#1a1a1a" }}>Facilities</h3>
+                <div className="flex flex-wrap gap-2">
+                  {station.facilities.map((f) => (
+                    <span key={f} className="text-xs px-3 py-1 rounded-full capitalize" style={{ background: "rgba(26,122,74,0.08)", color: "#1a7a4a", border: "1px solid rgba(26,122,74,0.15)" }}>
+                      {f}
+                    </span>
+                  ))}
+                </div>
               </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate(-1)} className="px-5 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#ffffff", border: "1px solid #e5e7eb", color: "#4b5563" }}>
+                ← Back
+              </button>
+              {isLoggedIn && (
+                <button
+                  onClick={() => navigate("/reports/create", { state: { stationId: id } })}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+                  style={{ background: "linear-gradient(135deg, #1a7a4a, #22a05e)" }}
+                >
+                  Create Report
+                </button>
+              )}
+              <button onClick={handleNavigate} className="ml-auto px-5 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#ffffff", border: "1px solid #e5e7eb", color: "#4b5563" }}>
+                Navigate →
+              </button>
             </div>
           </>
         )}

@@ -1,8 +1,32 @@
-node_modules
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+FRONTEND/node_modules/
+BACKEND/node_modules/
+
+# ── Environment files (NEVER commit secrets) ──────────────────────────────────
 .env
-dist
-build
-coverage
-.vscode
-FRONTEND/node_modules
-BACKEND/node_modules
+.env.local
+.env.*.local
+BACKEND/.env
+FRONTEND/.env
+
+# .env.production is safe to commit (only has VITE_API_URL=/api, no secrets)
+!FRONTEND/.env.production
+# .env.example is safe to commit (no real values)
+!BACKEND/.env.example
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+build/
+FRONTEND/dist/
+coverage/
+
+# ── OS / Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
