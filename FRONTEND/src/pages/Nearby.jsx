@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import stationApi from "../api/stationApi";
+import savedStationApi from "../api/savedStationApi";
 import { useAuth } from "../context/AuthContext";
+import GuestRestrictionModal from "../components/GuestRestrictionModal";
 
 function calcDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -14,7 +16,6 @@ function calcDistanceKm(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-const kmToMi = (km) => (km * 0.621371).toFixed(1);
 
 function openMaps(station, userCoords) {
   const coords = station.location?.coordinates;
@@ -30,27 +31,58 @@ function openMaps(station, userCoords) {
   }
 }
 
-function Loading() {
+function Toast({ message, type = "success", onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, [onClose]);
   return (
-    <div className="flex justify-center items-center py-20">
-      <div
-        className="w-10 h-10 rounded-full border-2 animate-spin"
-        style={{ borderColor: "#e5e7eb", borderTopColor: "#1a7a4a" }}
-      />
+    <div
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-lg flex items-center gap-2"
+      style={{
+        background: type === "success" ? "#16a34a" : "#dc2626",
+        color: "#fff",
+        minWidth: 220,
+      }}
+    >
+      {type === "success"
+        ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        : <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/></svg>
+      }
+      {message}
     </div>
   );
 }
 
-function StationCard({ station, onViewDetails, userCoords }) {
+function BookmarkIcon({ filled }) {
+  return filled ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="flex justify-center items-center py-20">
+      <div className="w-10 h-10 rounded-full border-2 animate-spin" style={{ borderColor: "#e5e7eb", borderTopColor: "#16a34a" }} />
+    </div>
+  );
+}
+
+function StationCard({ station, onViewDetails, userCoords, isSaved, onToggleSave, savingId }) {
   const hasEV  = (station.facilities || []).includes("ev");
   const isOpen = station.openNow;
   const [lng, lat] = station.location?.coordinates || [];
+  const isBusy = savingId === station._id;
 
-  // Use pre-computed distance from backend if available, else calculate
   const distKm = station.distanceKm != null
     ? station.distanceKm
     : (userCoords && lat && lng ? calcDistanceKm(userCoords.lat, userCoords.lng, lat, lng) : null);
-  const distMi = distKm != null ? (distKm * 0.621371).toFixed(1) : null;
   const distLabel = distKm != null
     ? (distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)} km`)
     : null;
@@ -66,14 +98,23 @@ function StationCard({ station, onViewDetails, userCoords }) {
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold leading-snug" style={{ color: "#1a1a1a" }}>{station.name}</h3>
           {station.operator && (
-            <p className="text-xs mt-0.5 font-medium" style={{ color: "#1a7a4a" }}>{station.operator}</p>
+            <p className="text-xs mt-0.5 font-medium" style={{ color: "#16a34a" }}>{station.operator}</p>
           )}
         </div>
-        {distLabel && (
-          <span className="text-xs font-semibold flex-shrink-0" style={{ color: "#9ca3af" }}>
-            {distLabel}
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {distLabel && (
+            <span className="text-xs font-semibold" style={{ color: "#9ca3af" }}>{distLabel}</span>
+          )}
+          <button
+            onClick={() => onToggleSave(station)}
+            disabled={isBusy}
+            title={isSaved ? "Remove from saved" : "Save station"}
+            aria-label={isSaved ? "Remove from saved stations" : "Save station"}
+            className="p-1 rounded-lg transition-colors hover:bg-gray-100 disabled:opacity-50"
+          >
+            <BookmarkIcon filled={isSaved} />
+          </button>
+        </div>
       </div>
 
       {station.address && (
@@ -92,17 +133,17 @@ function StationCard({ station, onViewDetails, userCoords }) {
           </span>
         )}
         {hasEV && (
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(26,122,74,0.08)", color: "#1a7a4a", border: "1px solid rgba(26,122,74,0.2)" }}>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.08)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}>
             EV Charging
           </span>
         )}
       </div>
 
-      <div className="flex gap-2 mt-auto pt-4" style={{ borderTop: "1px solid #e5e7eb", marginTop: "auto" }}>
+      <div className="flex gap-2 mt-auto pt-4" style={{ borderTop: "1px solid #f3f4f6", marginTop: "auto" }}>
         <button
           onClick={() => onViewDetails(station._id)}
           className="flex-1 py-2 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90"
-          style={{ background: "linear-gradient(135deg, #1a7a4a, #22a05e)" }}
+          style={{ background: "linear-gradient(135deg, #16a34a, #22a05e)" }}
         >
           View Details
         </button>
@@ -122,22 +163,43 @@ function StationCard({ station, onViewDetails, userCoords }) {
 
 export default function Nearby() {
   const navigate = useNavigate();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isGuest } = useAuth();
 
-  const [coords, setCoords]         = useState({ lng: -0.1278, lat: 51.5074 });
+  const [coords, setCoords]       = useState({ lng: -0.1278, lat: 51.5074 });
   const [userCoords, setUserCoords] = useState(null);
-  const [radiusKm, setRadiusKm]     = useState(10);
-  const [stations, setStations]     = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState("");
-  const [viewMode, setViewMode]     = useState("grid");
+  const [radiusKm, setRadiusKm]   = useState(10);
+  const [stations, setStations]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
+  const [viewMode, setViewMode]   = useState("grid");
+
+  // saved state: map of stationId -> boolean
+  const [savedMap, setSavedMap]   = useState({});
+  const [savingId, setSavingId]   = useState(null);
+  const [toast, setToast]         = useState(null);
+  const [guestModal, setGuestModal] = useState(null);
+
+  const showToast = (message, type = "success") => setToast({ message, type });
+
+  const loadSavedState = useCallback(async (stationList) => {
+    if (!isLoggedIn || !stationList.length) return;
+    try {
+      const ids = stationList.map(s => String(s._id));
+      const map = await savedStationApi.checkBulk(ids);
+      setSavedMap(map);
+    } catch {
+      // silently fail — bookmark state just won't show
+    }
+  }, [isLoggedIn]);
 
   const loadNearby = async (lng, lat, radius) => {
     setLoading(true);
     setError("");
     try {
       const list = await stationApi.nearby(lng, lat, radius);
-      setStations(Array.isArray(list) ? list : []);
+      const arr = Array.isArray(list) ? list : [];
+      setStations(arr);
+      await loadSavedState(arr);
     } catch (err) {
       const status = err?.response?.status;
       const msg    = err?.response?.data?.message || err?.message || "";
@@ -177,10 +239,66 @@ export default function Nearby() {
 
   const handleRefresh = () => loadNearby(coords.lng, coords.lat, radiusKm);
 
-  return (
-    <div style={{ background: "#f0f4f0" }}>
-      <div className="max-w-7xl mx-auto px-6 py-8">
+  const handleToggleSave = async (station) => {
+    if (!isLoggedIn) {
+      if (isGuest) {
+        setGuestModal("Saving stations requires a free QuickBreak account.");
+      } else {
+        navigate("/login");
+      }
+      return;
+    }
+    const id = String(station._id);
+    const alreadySaved = !!savedMap[id];
 
+    // Optimistic update
+    setSavedMap(prev => ({ ...prev, [id]: !alreadySaved }));
+    setSavingId(id);
+
+    try {
+      if (alreadySaved) {
+        await savedStationApi.remove(id);
+        showToast("Station removed from saved stations");
+      } else {
+        const [sLng, sLat] = station.location?.coordinates || [];
+        await savedStationApi.save({
+          stationId: id,
+          name: station.name,
+          brand: station.operator || "",
+          motorway: station.motorway || "",
+          roadLabel: station.motorway ? `${station.motorway} Motorway` : "",
+          address: station.address || "",
+          distanceKm: station.distanceKm ?? null,
+          amenities: station.facilities || [],
+          coordinates: sLat && sLng ? { lat: sLat, lng: sLng } : { lat: null, lng: null },
+        });
+        showToast("Station saved successfully");
+      }
+    } catch (err) {
+      // Revert on failure
+      setSavedMap(prev => ({ ...prev, [id]: alreadySaved }));
+      const msg = err?.response?.data?.message || "";
+      if (err?.response?.status === 409) {
+        setSavedMap(prev => ({ ...prev, [id]: true }));
+        showToast("Already saved", "success");
+      } else {
+        showToast(msg || "Something went wrong", "error");
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div style={{ background: "#f0f4f0", minHeight: "100vh" }}>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
+      {guestModal && (
+        <GuestRestrictionModal message={guestModal} onClose={() => setGuestModal(null)} />
+      )}
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-extrabold" style={{ color: "#1a1a1a" }}>Nearby Stations</h1>
           <p className="text-sm mt-1" style={{ color: "#4b5563" }}>
@@ -227,7 +345,7 @@ export default function Nearby() {
                 className="px-2.5 py-1.5 transition-colors"
                 style={{
                   background: viewMode === "grid" ? "#e8f5ee" : "#ffffff",
-                  color: viewMode === "grid" ? "#1a7a4a" : "#9ca3af",
+                  color: viewMode === "grid" ? "#16a34a" : "#9ca3af",
                   borderRight: "1px solid #e5e7eb",
                 }}
               >
@@ -244,7 +362,7 @@ export default function Nearby() {
                 className="px-2.5 py-1.5 transition-colors"
                 style={{
                   background: viewMode === "list" ? "#e8f5ee" : "#ffffff",
-                  color: viewMode === "list" ? "#1a7a4a" : "#9ca3af",
+                  color: viewMode === "list" ? "#16a34a" : "#9ca3af",
                 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -260,9 +378,12 @@ export default function Nearby() {
           </div>
 
           <button
-            onClick={() => isLoggedIn ? navigate("/reports/create") : navigate("/login")}
+            onClick={() => {
+              if (isGuest) { setGuestModal("Creating reports requires a free QuickBreak account."); return; }
+              isLoggedIn ? navigate("/reports/create") : navigate("/login");
+            }}
             className="flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg font-semibold text-white transition-opacity hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #1a7a4a, #22a05e)" }}
+            style={{ background: "linear-gradient(135deg, #16a34a, #22a05e)" }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
               <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
@@ -275,7 +396,7 @@ export default function Nearby() {
           <p className="text-sm mb-5" style={{ color: "#9ca3af" }}>
             {stations.length === 0
               ? "No stations found"
-              : `${stations.length} station${stations.length !== 1 ? "s" : ""} found`
+              : `Showing ${stations.length} station${stations.length !== 1 ? "s" : ""}`
             }
             {stations.length > 0 && stations[0]?.distanceKm != null && (
               <span> — nearest is {stations[0].distanceKm < 1
@@ -308,6 +429,9 @@ export default function Nearby() {
                 key={s._id}
                 station={s}
                 userCoords={userCoords}
+                isSaved={!!savedMap[String(s._id)]}
+                onToggleSave={handleToggleSave}
+                savingId={savingId}
                 onViewDetails={(id) => navigate(`/stations/${id}`)}
               />
             ))}
@@ -326,6 +450,7 @@ export default function Nearby() {
                 : null;
               const hasEV  = (s.facilities || []).includes("ev");
               const isOpen = s.openNow;
+              const id = String(s._id);
               return (
                 <div
                   key={s._id}
@@ -337,12 +462,12 @@ export default function Nearby() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold" style={{ color: "#1a1a1a" }}>{s.name}</p>
-                      {s.operator && <span className="text-xs" style={{ color: "#1a7a4a" }}>{s.operator}</span>}
+                      {s.operator && <span className="text-xs" style={{ color: "#16a34a" }}>{s.operator}</span>}
                       {isOpen && (
                         <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.08)", color: "#059669", border: "1px solid rgba(16,185,129,0.2)" }}>Open 24/7</span>
                       )}
                       {hasEV && (
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(26,122,74,0.08)", color: "#1a7a4a", border: "1px solid rgba(26,122,74,0.2)" }}>EV</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.08)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}>EV</span>
                       )}
                     </div>
                     {s.address && <p className="text-xs mt-0.5 truncate" style={{ color: "#4b5563" }}>{s.address}</p>}
@@ -350,9 +475,18 @@ export default function Nearby() {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     {distLabel && <span className="text-xs font-medium" style={{ color: "#9ca3af" }}>{distLabel}</span>}
                     <button
+                      onClick={() => handleToggleSave(s)}
+                      disabled={savingId === id}
+                      title={savedMap[id] ? "Remove from saved" : "Save station"}
+                      aria-label={savedMap[id] ? "Remove from saved stations" : "Save station"}
+                      className="p-1 rounded-lg transition-colors hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      <BookmarkIcon filled={!!savedMap[id]} />
+                    </button>
+                    <button
                       onClick={() => navigate(`/stations/${s._id}`)}
                       className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90"
-                      style={{ background: "linear-gradient(135deg, #1a7a4a, #22a05e)" }}
+                      style={{ background: "linear-gradient(135deg, #16a34a, #22a05e)" }}
                     >
                       View Details
                     </button>

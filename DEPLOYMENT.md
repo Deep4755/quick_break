@@ -1,136 +1,160 @@
 # QuickBreak — Deployment Guide
 
-## Strategy: Single Full-Stack App on Hostinger
+## Architecture
 
-Backend (Express) serves the React frontend build.
-One Node.js app, one domain, no CORS issues.
+Single full-stack deployment: Express backend serves the React frontend build.
+One Node.js app, one domain, no CORS issues in production.
 
----
-
-## Local Development
-
-```bash
-# Terminal 1 — Backend
-cd BACKEND
-npm install
-npm run dev        # runs on http://localhost:5000
-
-# Terminal 2 — Frontend
-cd FRONTEND
-npm install
-npm run dev        # runs on http://localhost:5173
+```
+Hostinger Node.js App
+└── BACKEND/               ← app root on Hostinger
+    ├── src/server.js      ← entry point
+    └── ../FRONTEND/dist/  ← built React app served as static files
 ```
 
 ---
 
-## Build for Production (run locally before pushing)
+## Step 1 — Push to GitHub
+
+Run these commands from your project root:
 
 ```bash
-cd FRONTEND
-npm install
-npm run build      # creates FRONTEND/dist/
+git add .
+git commit -m "feat: production ready"
+git push origin main
 ```
 
-Then push everything (including FRONTEND/dist) to GitHub,
-OR let Hostinger build it using the build command below.
-
----
-
-## GitHub — Push Commands
-
+If this is your first push to a new repo:
 ```bash
-# First time
 git init
 git add .
-git commit -m "feat: QuickBreak production ready"
+git commit -m "feat: initial production ready commit"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/quickbreak.git
+git remote add origin https://github.com/YOUR_USERNAME/quick_break.git
 git push -u origin main
-
-# After changes
-git add .
-git commit -m "your message"
-git push
 ```
 
 ---
 
-## Hostinger Deployment
+## Step 2 — Hostinger Setup
 
-### Which folder to deploy from: BACKEND
+### In Hostinger hPanel:
 
-Hostinger Node.js app root = BACKEND folder
+1. Go to **Hosting → Manage → Node.js**
+2. Create a new Node.js application with these settings:
 
-### Node version: 18 or 20 (LTS)
+| Setting | Value |
+|---|---|
+| Node.js version | 18 or 20 (LTS) |
+| Application root | `BACKEND` |
+| Application URL | your domain |
+| Application startup file | `src/server.js` |
 
-### Build command (Hostinger runs this once on deploy):
+3. Set the **build command** (Hostinger runs this once on deploy):
 ```
-npm install && cd ../FRONTEND && npm install && npm run build
+npm install && npm install --prefix ../FRONTEND && npm run build --prefix ../FRONTEND
 ```
 
-### Start command:
+4. Set the **start command**:
 ```
-NODE_ENV=production node src/server.js
-```
-
-### Entry point:
-```
-src/server.js
+node src/server.js
 ```
 
 ---
 
-## Environment Variables (set in Hostinger control panel)
+## Step 3 — Set Environment Variables on Hostinger
+
+In Hostinger hPanel → Node.js → Environment Variables, add:
 
 ```
 NODE_ENV=production
 PORT=3000
 MONGO_URI=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/quickbreak?retryWrites=true&w=majority
-JWT_SECRET=your_strong_secret_here
+JWT_SECRET=your_long_random_secret_here
 JWT_EXPIRES_IN=7d
 MAPBOX_TOKEN=pk.your_mapbox_token_here
 MAPBOX_PROFILE=driving
-TOMTOM_API_KEY=your_tomtom_key_here
 ```
 
-Note: Do NOT set CORS_ORIGIN — in single-app mode it is not needed.
+Optional (only if using contact form email sending):
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@email.com
+SMTP_PASS=your_app_password
+SUPPORT_EMAIL=support@quickbreak.uk
+```
+
+**Do NOT set CORS_ORIGIN** — in single-app mode it is not needed.
 
 ---
 
-## After Deployment — Seed the Database
+## Step 4 — Connect GitHub to Hostinger (Auto-Deploy)
 
-Visit this URL once (POST request via Postman or browser fetch):
-```
-https://yourdomain.com/api/service-stations/seed
-```
+1. In Hostinger hPanel → Git
+2. Connect your GitHub repository
+3. Set branch to `main`
+4. Enable auto-deploy on push
 
-Or use curl:
+Now every `git push` will trigger a redeploy automatically.
+
+---
+
+## Step 5 — Seed the Database
+
+After first deployment, seed the service stations once:
+
 ```bash
 curl -X POST https://yourdomain.com/api/service-stations/seed
 ```
 
----
-
-## Test Checklist After Deployment
-
-- [ ] https://yourdomain.com — loads React app
-- [ ] https://yourdomain.com/api/health — returns { status: "OK" }
-- [ ] https://yourdomain.com/api/service-stations/search?q=heston — returns stations
-- [ ] /nearby page loads and shows stations
-- [ ] /login and /register work
-- [ ] Create Report works after login
-- [ ] Bexxa voice assistant works (Chrome/Edge only)
+Or open Postman and POST to `https://yourdomain.com/api/service-stations/seed`
 
 ---
 
-## File Structure on Hostinger
+## Verify Deployment
 
+| Check | URL |
+|---|---|
+| App loads | `https://yourdomain.com` |
+| API health | `https://yourdomain.com/api/health` |
+| Stations API | `https://yourdomain.com/api/service-stations/search?q=heston` |
+| React routing | `https://yourdomain.com/nearby` (refresh should work) |
+
+---
+
+## Local Development (recap)
+
+```bash
+# Terminal 1 — Backend
+cd BACKEND
+npm install
+npm run dev        # http://localhost:5000
+
+# Terminal 2 — Frontend
+cd FRONTEND
+npm install
+npm run dev        # http://localhost:5173
 ```
-project-root/
-├── BACKEND/          ← Hostinger deploys from here
-│   ├── src/
-│   ├── package.json
-│   └── .env          ← set via Hostinger env panel, NOT committed to git
-└── FRONTEND/
-    └── dist/         ← built by build command, served by Express
-```
+
+---
+
+## Common Issues
+
+**White screen after deploy**
+- Check that `FRONTEND/dist/` was built (build command ran successfully)
+- Check Hostinger build logs for errors
+
+**API calls failing (404 or network error)**
+- Confirm `NODE_ENV=production` is set in Hostinger env vars
+- Confirm `VITE_API_URL=/api` is in `FRONTEND/.env.production` (already set)
+
+**MongoDB connection error**
+- Double-check `MONGO_URI` in Hostinger env vars
+- Make sure your MongoDB Atlas cluster allows connections from all IPs (0.0.0.0/0)
+
+**React routes return 404 on refresh**
+- This is handled by the SPA fallback in `BACKEND/src/app.js` — ensure `NODE_ENV=production`
+
+**Port issues**
+- Hostinger assigns its own port via `process.env.PORT` — the app already uses this

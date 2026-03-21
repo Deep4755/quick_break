@@ -10,6 +10,13 @@ const authRoutes = require("./routes/authRoutes");
 const healthRoutes = require('./routes/healthRoutes');
 const serviceStationRoutes = require('./routes/serviceStationRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const savedStationRoutes = require('./routes/savedStationRoutes');
+const bexxaRoutes        = require('./routes/bexxaRoutes');
+const reviewRoutes       = require('./routes/reviewRoutes');
+const guestAccessRoutes  = require('./routes/guestAccessRoutes');
+const helpCenterRoutes   = require('./routes/helpCenterRoutes');
+const contactRoutes      = require('./routes/contactRoutes');
+const legalRoutes        = require('./routes/legalRoutes');
 
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
@@ -46,6 +53,13 @@ app.use(express.json());
 app.use('/api/health', healthRoutes);
 app.use('/api/service-stations', serviceStationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/saved-stations', savedStationRoutes);
+app.use('/api/bexxa',         bexxaRoutes);
+app.use('/api/reviews',      reviewRoutes);
+app.use('/api/guest-access', guestAccessRoutes);
+app.use('/api/help-center',  helpCenterRoutes);
+app.use('/api/contact',      contactRoutes);
+app.use('/api/legal',        legalRoutes);
 app.use("/api/map", mapRoutes);
 app.use("/api/auth", authRoutes);
 
@@ -57,14 +71,15 @@ app.use(errorHandler);
 // Serve frontend build in production
 const path = require("path");
 if (process.env.NODE_ENV === "production") {
-  // Primary path: FRONTEND/dist is a sibling of BACKEND (monorepo structure)
+  // FRONTEND/dist sits one level up from BACKEND (monorepo root structure)
   const clientBuildPath = path.join(__dirname, "..", "..", "FRONTEND", "dist");
   const indexPath = path.join(clientBuildPath, "index.html");
 
   app.use(express.static(clientBuildPath));
 
-  // SPA fallback — React Router needs this so /nearby, /login etc. work on refresh
-  app.get("*", (req, res) => {
+  // SPA fallback — React Router needs this so /nearby, /login etc. work on page refresh
+  // Only catch non-API routes so API 404s still return JSON errors
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(indexPath);
   });
 

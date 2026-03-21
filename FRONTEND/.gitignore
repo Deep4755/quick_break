@@ -1,20 +1,16 @@
-node_modules
-dist
-dist-ssr
-*.local
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.log
 
-# Env files — keep .env.production (safe, no secrets), exclude local ones
+# Local env files — .env.production is safe and IS committed
 .env
 .env.local
 .env.*.local
 
 # Editor
-.vscode/*
-!.vscode/extensions.json
-.idea
+.vscode/
+.idea/
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db

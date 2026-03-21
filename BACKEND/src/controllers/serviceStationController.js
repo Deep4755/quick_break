@@ -79,7 +79,7 @@ exports.getNearbyStations = async (req, res, next) => {
 
     console.log(`[getNearbyStations] lat=${lat} lng=${lng} radiusKm=${radiusKm} facilities=${facilitiesParam || "none"}`);
 
-    const MIN_RESULTS   = 3;
+    const MIN_RESULTS   = 6;
     // Build radius steps: always start with user's chosen radius, then widen
     const RADIUS_STEPS = Array.from(new Set([radiusKm, 25, 50, 100, 200].filter(r => r >= radiusKm)));
 
@@ -147,7 +147,7 @@ exports.getNearbyStations = async (req, res, next) => {
     });
 
     console.log(`[getNearbyStations] returning ${stationsWithDistance.length} station(s)`);
-    return res.status(200).json(stationsWithDistance);
+    return res.status(200).json(stationsWithDistance.slice(0, 12));
 
   } catch (err) {
     next(err);

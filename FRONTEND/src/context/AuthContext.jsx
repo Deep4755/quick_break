@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import authApi from "../api/authApi";
+import guestAccessApi from "../api/guestAccessApi";
 import api from "../api/axios";
 
 const AuthContext = createContext(null);
@@ -39,6 +40,7 @@ export function AuthProvider({ children }) {
       setIsGuest(false);
       localStorage.setItem("qb_user", JSON.stringify(u));
       localStorage.removeItem("qb_guest");
+      localStorage.removeItem("qb_guest_token");
       return res.data;
     } finally {
       setLoading(false);
@@ -55,13 +57,20 @@ export function AuthProvider({ children }) {
       setIsGuest(false);
       localStorage.setItem("qb_user", JSON.stringify(u));
       localStorage.removeItem("qb_guest");
+      localStorage.removeItem("qb_guest_token");
       return res.data;
     } finally {
       setLoading(false);
     }
   };
 
-  const continueAsGuest = () => {
+  const continueAsGuest = async () => {
+    try {
+      const res = await guestAccessApi.startSession({ sourcePage: "guest-access" });
+      localStorage.setItem("qb_guest_token", res.sessionToken);
+    } catch {
+      // session creation failed — still allow guest mode locally
+    }
     setIsGuest(true);
     setUser(null);
     setToken("");
@@ -71,6 +80,12 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // end guest session if one exists
+    const guestToken = localStorage.getItem("qb_guest_token");
+    if (guestToken) {
+      guestAccessApi.endSession(guestToken).catch(() => {});
+      localStorage.removeItem("qb_guest_token");
+    }
     setUser(null);
     setToken("");
     setIsGuest(false);
