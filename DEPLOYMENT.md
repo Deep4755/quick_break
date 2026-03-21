@@ -64,17 +64,19 @@ node src/server.js
 
 ## Step 3 — Set Environment Variables on Hostinger
 
-In Hostinger hPanel → Node.js → Environment Variables, add:
+In Hostinger hPanel → Node.js → Environment Variables, add **all of these**:
 
 ```
 NODE_ENV=production
 PORT=3000
-MONGO_URI=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/quickbreak?retryWrites=true&w=majority
+MONGO_URL=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/quickbreak?retryWrites=true&w=majority
 JWT_SECRET=your_long_random_secret_here
 JWT_EXPIRES_IN=7d
 MAPBOX_TOKEN=pk.your_mapbox_token_here
 MAPBOX_PROFILE=driving
 ```
+
+> Note: the variable is `MONGO_URL` (not `MONGO_URI`) — must match exactly.
 
 Optional (only if using contact form email sending):
 ```
