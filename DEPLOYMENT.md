@@ -141,20 +141,24 @@ npm run dev        # http://localhost:5173
 
 ## Common Issues
 
+**Live domain shows `{"message":"Not Found - /"}`**
+- This means `NODE_ENV` is not set to `production` in Hostinger env vars
+- The React build is only served when `NODE_ENV=production` — set it in hPanel → Environment Variables
+
 **White screen after deploy**
 - Check that `FRONTEND/dist/` was built (build command ran successfully)
 - Check Hostinger build logs for errors
 
 **API calls failing (404 or network error)**
 - Confirm `NODE_ENV=production` is set in Hostinger env vars
-- Confirm `VITE_API_URL=/api` is in `FRONTEND/.env.production` (already set)
+- Confirm `VITE_API_URL=/api` is in `FRONTEND/.env.production` (already committed)
 
 **MongoDB connection error**
 - Double-check `MONGO_URI` in Hostinger env vars
-- Make sure your MongoDB Atlas cluster allows connections from all IPs (0.0.0.0/0)
+- Make sure your MongoDB Atlas cluster allows connections from all IPs (`0.0.0.0/0`)
 
 **React routes return 404 on refresh**
-- This is handled by the SPA fallback in `BACKEND/src/app.js` — ensure `NODE_ENV=production`
+- Handled by the SPA fallback in `BACKEND/src/app.js` — requires `NODE_ENV=production`
 
 **Port issues**
-- Hostinger assigns its own port via `process.env.PORT` — the app already uses this
+- Hostinger assigns its own port via `process.env.PORT` — the app already reads this
