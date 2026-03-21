@@ -16,9 +16,10 @@ FRONTEND/.env
 !FRONTEND/.env.example
 
 # ── Build output ──────────────────────────────────────────────────────────────
+# Keep FRONTEND/dist in git so Hostinger doesn't need to build it
+# FRONTEND/dist/
 dist/
 build/
-FRONTEND/dist/
 coverage/
 
 # ── OS / Editor ───────────────────────────────────────────────────────────────

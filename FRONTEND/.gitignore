@@ -1,8 +1,10 @@
 node_modules/
-dist/
 dist-ssr/
 coverage/
 *.log
+
+# Keep dist/ committed so Hostinger can serve it without a build step
+# dist/
 
 # Local env files — .env.production is safe and IS committed
 .env
