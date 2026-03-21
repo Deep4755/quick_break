@@ -60,37 +60,27 @@ app.use('/api/contact',          contactRoutes);
 app.use('/api/legal',            legalRoutes);
 app.use('/api/map',              mapRoutes);
 
-// ── 2. API 404 — unmatched /api/* return JSON ─────────────────────────────────
-app.use('/api/{*splat}', notFound);
+// ── 2. API 404 — unmatched /api/* routes return JSON ─────────────────────────
+app.use('/api', notFound);
 
-// ── 3. Frontend static files ──────────────────────────────────────────────────
-// Vite builds into BACKEND/public (configured in vite.config.js)
-// __dirname = BACKEND/src  →  ../public = BACKEND/public
+// ── 3. Serve built React frontend from BACKEND/public ────────────────────────
+// __dirname = BACKEND/src → ../public = BACKEND/public
 const publicDir   = path.join(__dirname, '..', 'public');
 const clientIndex = path.join(publicDir, 'index.html');
 
-const frontendExists = fs.existsSync(clientIndex);
-console.log('📁 Frontend public dir:', publicDir);
-console.log('📄 index.html found:', frontendExists);
+console.log('📁 Serving frontend from:', publicDir);
+console.log('📄 index.html exists:', fs.existsSync(clientIndex));
 
-if (frontendExists) {
-  app.use(express.static(publicDir));
+app.use(express.static(publicDir));
 
-  // ── 4. SPA fallback — React Router needs this for direct URL access ─────────
-  app.get('/{*splat}', (req, res) => {
+// ── 4. SPA fallback — send index.html for all non-API routes ─────────────────
+app.get('*', (req, res) => {
+  if (fs.existsSync(clientIndex)) {
     res.sendFile(clientIndex);
-  });
-} else {
-  console.warn('⚠️  BACKEND/public/index.html not found — frontend not served');
-  console.warn('   Run: npm run build (from BACKEND) to build the frontend');
-
-  // Return a clear message instead of crashing
-  app.get('/{*splat}', (req, res) => {
-    res.status(503).json({
-      message: 'Frontend not built yet. Run: npm run build from BACKEND folder.',
-    });
-  });
-}
+  } else {
+    res.status(503).json({ message: 'Frontend build not found. Run the build command.' });
+  }
+});
 
 // ── 5. Error handler — must be last ──────────────────────────────────────────
 app.use(errorHandler);
