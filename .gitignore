@@ -16,8 +16,8 @@ FRONTEND/.env
 !FRONTEND/.env.example
 
 # ── Build output ──────────────────────────────────────────────────────────────
-# FRONTEND/dist is committed to git so Hostinger can serve it without a build step
-# Do NOT add FRONTEND/dist/ here
+# BACKEND/public is committed to git (Vite builds here, Express serves from here)
+# Do NOT ignore BACKEND/public
 build/
 coverage/
 

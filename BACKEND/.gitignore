@@ -1,6 +1,7 @@
 node_modules/
 .env
-dist/
-build/
 coverage/
 *.log
+
+# public/ is the Vite build output — keep it committed so Hostinger can serve it
+# Do NOT add public/ here

@@ -3,6 +3,7 @@ const cors       = require('cors');
 const morgan     = require('morgan');
 const helmet     = require('helmet');
 const path       = require('path');
+const fs         = require('fs');
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 const authRoutes           = require('./routes/authRoutes');
@@ -33,9 +34,9 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);                              // same-origin / Postman
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    if (process.env.NODE_ENV === 'production') return callback(null, true); // single-app mode
+    if (process.env.NODE_ENV === 'production') return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -45,7 +46,7 @@ app.use(cors({
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 
-// ── 1. API routes — ALWAYS first ─────────────────────────────────────────────
+// ── 1. API routes — always first ─────────────────────────────────────────────
 app.use('/api/health',           healthRoutes);
 app.use('/api/auth',             authRoutes);
 app.use('/api/service-stations', serviceStationRoutes);
@@ -59,32 +60,37 @@ app.use('/api/contact',          contactRoutes);
 app.use('/api/legal',            legalRoutes);
 app.use('/api/map',              mapRoutes);
 
-// ── 2. API 404 — unmatched /api/* routes return JSON, not the React app ───────
+// ── 2. API 404 — unmatched /api/* return JSON ─────────────────────────────────
 app.use('/api/{*splat}', notFound);
 
 // ── 3. Frontend static files ──────────────────────────────────────────────────
-// app.js lives at: BACKEND/src/app.js
-// __dirname      = .../BACKEND/src
-// ../..          = project root
-// ../../FRONTEND/dist = project root/FRONTEND/dist
-const clientDist  = path.resolve(__dirname, '..', '..', 'FRONTEND', 'dist');
-const clientIndex = path.join(clientDist, 'index.html');
+// Vite builds into BACKEND/public (configured in vite.config.js)
+// __dirname = BACKEND/src  →  ../public = BACKEND/public
+const publicDir   = path.join(__dirname, '..', 'public');
+const clientIndex = path.join(publicDir, 'index.html');
 
-console.log('📁 Frontend dist path:', clientDist);
+const frontendExists = fs.existsSync(clientIndex);
+console.log('📁 Frontend public dir:', publicDir);
+console.log('📄 index.html found:', frontendExists);
 
-// Serve static assets (JS chunks, CSS, images, fonts)
-app.use(express.static(clientDist));
+if (frontendExists) {
+  app.use(express.static(publicDir));
 
-// ── 4. SPA fallback — all non-API routes serve index.html ────────────────────
-// Express 5 requires '/{*splat}' instead of '*' for catch-all routes
-app.get('/{*splat}', (req, res) => {
-  res.sendFile(clientIndex, (err) => {
-    if (err) {
-      console.error('❌ Could not send index.html:', err.message);
-      res.status(500).json({ message: 'Frontend build not found. Run the build command.' });
-    }
+  // ── 4. SPA fallback — React Router needs this for direct URL access ─────────
+  app.get('/{*splat}', (req, res) => {
+    res.sendFile(clientIndex);
   });
-});
+} else {
+  console.warn('⚠️  BACKEND/public/index.html not found — frontend not served');
+  console.warn('   Run: npm run build (from BACKEND) to build the frontend');
+
+  // Return a clear message instead of crashing
+  app.get('/{*splat}', (req, res) => {
+    res.status(503).json({
+      message: 'Frontend not built yet. Run: npm run build from BACKEND folder.',
+    });
+  });
+}
 
 // ── 5. Error handler — must be last ──────────────────────────────────────────
 app.use(errorHandler);

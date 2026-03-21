@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "postinstall": "npm install --prefix ../FRONTEND && npm run build --prefix ../FRONTEND",
     "build": "npm install --prefix ../FRONTEND && npm run build --prefix ../FRONTEND",
     "test": "jest"
   },
