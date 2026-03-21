@@ -1,7 +1,8 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
 const ServiceStation = require("../models/ServiceStation");
-const { reverseGeocode } = require("../services/tomtomService");
+// reverseGeocode is provided by Mapbox, not TomTom
+const { reverseGeocode } = require("../services/mapboxService");
 
 const extractMotorway = (text = "") => {
   const m = String(text).match(/\bM\d{1,2}\b/i);
@@ -9,7 +10,9 @@ const extractMotorway = (text = "") => {
 };
 
 async function run() {
-  await mongoose.connect(process.env.MONGO_URI);
+  const uri = process.env.MONGO_URL || process.env.MONGO_URI;
+  if (!uri) { console.error("❌ MONGO_URL not set"); process.exit(1); }
+  await mongoose.connect(uri);
   console.log("✅ Mongo connected");
 
   const stations = await ServiceStation.find({
