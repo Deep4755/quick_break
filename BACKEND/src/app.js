@@ -64,16 +64,15 @@ app.use('/api/map',              mapRoutes);
 app.use('/api', notFound);
 
 // ── 3. Locate the built React frontend ───────────────────────────────────────
-// Hostinger clones the FULL repo. Root directory = BACKEND means the process
-// starts from BACKEND/, but the full repo is still present.
-//
-// __dirname = <repo>/BACKEND/src
-// Candidate 1: <repo>/FRONTEND/dist  (full repo clone — Hostinger standard)
-// Candidate 2: <repo>/BACKEND/public (fallback if built locally into public)
-//
+// Log exact runtime paths so we can debug from Hostinger runtime logs
+console.log('📂 process.cwd()  :', process.cwd());
+console.log('📂 __dirname      :', __dirname);
+
 const candidates = [
-  path.resolve(__dirname, '..', '..', 'FRONTEND', 'dist'),  // full repo clone
-  path.resolve(__dirname, '..', 'public'),                   // BACKEND/public fallback
+  path.resolve(__dirname, '..', '..', 'FRONTEND', 'dist'),  // full repo: BACKEND/src → root → FRONTEND/dist
+  path.resolve(__dirname, '..', 'public'),                   // BACKEND/public
+  path.resolve(process.cwd(), 'FRONTEND', 'dist'),           // if cwd = repo root
+  path.resolve(process.cwd(), '..', 'FRONTEND', 'dist'),     // if cwd = BACKEND
 ];
 
 let distDir = null;
