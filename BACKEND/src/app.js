@@ -60,7 +60,7 @@ app.use('/api/legal',            legalRoutes);
 app.use('/api/map',              mapRoutes);
 
 // ── 2. API 404 — unmatched /api/* routes return JSON, not the React app ───────
-app.use('/api', notFound);
+app.use('/api/{*splat}', notFound);
 
 // ── 3. Frontend static files ──────────────────────────────────────────────────
 // app.js lives at: BACKEND/src/app.js
@@ -76,7 +76,8 @@ console.log('📁 Frontend dist path:', clientDist);
 app.use(express.static(clientDist));
 
 // ── 4. SPA fallback — all non-API routes serve index.html ────────────────────
-app.get('*', (req, res) => {
+// Express 5 requires '/{*splat}' instead of '*' for catch-all routes
+app.get('/{*splat}', (req, res) => {
   res.sendFile(clientIndex, (err) => {
     if (err) {
       console.error('❌ Could not send index.html:', err.message);
