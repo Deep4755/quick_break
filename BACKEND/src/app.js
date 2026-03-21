@@ -63,17 +63,19 @@ app.use('/api/map',              mapRoutes);
 // ── 2. API 404 — unmatched /api/* routes return JSON ─────────────────────────
 app.use('/api', notFound);
 
-// ── 3. Serve built React frontend from BACKEND/public ────────────────────────
-// __dirname = BACKEND/src → ../public = BACKEND/public
-const publicDir   = path.join(__dirname, '..', 'public');
-const clientIndex = path.join(publicDir, 'index.html');
+// ── 3. Serve built React frontend ────────────────────────────────────────────
+// Hostinger clones the full repo, so FRONTEND/dist exists at:
+// __dirname = .../BACKEND/src
+// ../../FRONTEND/dist = project root / FRONTEND / dist
+const distDir     = path.resolve(__dirname, '..', '..', 'FRONTEND', 'dist');
+const clientIndex = path.join(distDir, 'index.html');
 
-console.log('📁 Serving frontend from:', publicDir);
+console.log('📁 Frontend dist:', distDir);
 console.log('📄 index.html exists:', fs.existsSync(clientIndex));
 
-app.use(express.static(publicDir));
+app.use(express.static(distDir));
 
-// ── 4. SPA fallback — send index.html for all non-API routes ─────────────────
+// ── 4. SPA fallback — React Router needs this for direct URL access ───────────
 app.get('*', (req, res) => {
   if (fs.existsSync(clientIndex)) {
     res.sendFile(clientIndex);

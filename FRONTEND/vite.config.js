@@ -4,10 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  build: {
-    // Build directly into BACKEND/public so Express can serve it
-    // without any cross-folder path resolution issues on Hostinger
-    outDir: '../BACKEND/public',
-    emptyOutDir: true,
-  },
+  // outDir defaults to 'dist' inside FRONTEND — Hostinger build command
+  // (cd ../FRONTEND && npm ci && npm run build) puts it at FRONTEND/dist
+  // Express serves it via path.resolve(__dirname, '../../FRONTEND/dist')
 })
