@@ -2,6 +2,8 @@ const express    = require('express');
 const cors       = require('cors');
 const morgan     = require('morgan');
 const helmet     = require('helmet');
+const path       = require('path');
+const fs         = require('fs');
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 const authRoutes           = require('./routes/authRoutes');
@@ -31,14 +33,14 @@ const allowedOrigins = process.env.CORS_ORIGIN
   : [
       'http://localhost:5173', 
       'http://localhost:3000', 
-      'http://localhost:5000',
-      'https://your-frontend-app.vercel.app' // Add your Vercel domain here
+      'http://localhost:5000'
     ];
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // Allow requests with no origin (mobile apps, etc.)
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV === 'production') return callback(null, true); // Allow all origins in production for single deployment
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -65,12 +67,25 @@ app.use('/api/map',              mapRoutes);
 // ── 2. API 404 — unmatched /api/* routes return JSON ─────────────────────────
 app.use('/api', notFound);
 
-// ── 3. Health check endpoint for Render ──────────────────────────────────────
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'QuickBreak API is running',
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV || 'development'
+// ── 3. Serve React frontend ───────────────────────────────────────────────────
+const publicDir = path.join(__dirname, '..', 'public');
+const clientIndex = path.join(publicDir, 'index.html');
+
+console.log('📁 Serving frontend from:', publicDir);
+console.log('📄 index.html exists:', fs.existsSync(clientIndex));
+
+app.use(express.static(publicDir));
+
+// ── 4. SPA fallback — send index.html for all non-API routes ─────────────────
+app.get('*', (req, res) => {
+  if (fs.existsSync(clientIndex)) {
+    return res.sendFile(clientIndex);
+  }
+  
+  console.error('❌ Frontend build not found at:', clientIndex);
+  return res.status(503).json({
+    message: 'Frontend build not found. Please build the frontend first.',
+    lookedFor: clientIndex
   });
 });
 
