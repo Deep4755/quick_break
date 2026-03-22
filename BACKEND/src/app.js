@@ -63,52 +63,28 @@ app.use('/api/map',              mapRoutes);
 // ── 2. API 404 — unmatched /api/* routes return JSON ─────────────────────────
 app.use('/api', notFound);
 
-// ── 3. Locate the built React frontend ───────────────────────────────────────
-// Log exact runtime paths so we can debug from Hostinger runtime logs
-console.log('📂 process.cwd()  :', process.cwd());
-console.log('📂 __dirname      :', __dirname);
+// ── 3. Serve React frontend ───────────────────────────────────────────────────
+// Hostinger deploys BACKEND folder contents to:
+//   /home/u391028941/domains/codebydeep.codebydeep.co.uk/
+// So BACKEND/public is at that root — __dirname is .../src, ../public is correct
+const publicDir   = path.join(__dirname, '..', 'public');
+const clientIndex = path.join(publicDir, 'index.html');
 
-const candidates = [
-  path.resolve(__dirname, '..', '..', 'FRONTEND', 'dist'),  // full repo: BACKEND/src → root → FRONTEND/dist
-  path.resolve(__dirname, '..', 'public'),                   // BACKEND/public
-  path.resolve(process.cwd(), 'FRONTEND', 'dist'),           // if cwd = repo root
-  path.resolve(process.cwd(), '..', 'FRONTEND', 'dist'),     // if cwd = BACKEND
-];
+console.log('📁 Serving frontend from:', publicDir);
+console.log('📄 index.html exists:', fs.existsSync(clientIndex));
 
-let distDir = null;
-for (const candidate of candidates) {
-  if (fs.existsSync(path.join(candidate, 'index.html'))) {
-    distDir = candidate;
-    break;
+app.use(express.static(publicDir));
+
+// ── 4. SPA fallback ───────────────────────────────────────────────────────────
+app.get('*', (req, res) => {
+  if (fs.existsSync(clientIndex)) {
+    res.sendFile(clientIndex);
+  } else {
+    res.status(503).json({ message: 'Frontend build not found.', path: publicDir });
   }
-}
-
-// Log all candidates so you can see in Hostinger runtime logs exactly what's happening
-console.log('🔍 Searching for frontend build...');
-candidates.forEach(c => {
-  console.log(`   ${c} → ${fs.existsSync(path.join(c, 'index.html')) ? '✅ FOUND' : '❌ not found'}`);
 });
 
-if (distDir) {
-  console.log('✅ Serving frontend from:', distDir);
-  app.use(express.static(distDir));
-
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distDir, 'index.html'));
-  });
-} else {
-  console.error('❌ Frontend build not found in any candidate path.');
-  console.error('   Make sure FRONTEND/dist exists in the repo or run the build command.');
-
-  app.get('*', (req, res) => {
-    res.status(503).json({
-      message: 'Frontend build not found.',
-      searched: candidates,
-    });
-  });
-}
-
-// ── 4. Error handler — must be last ──────────────────────────────────────────
+// ── 5. Error handler — must be last ──────────────────────────────────────────
 app.use(errorHandler);
 
 module.exports = app;
