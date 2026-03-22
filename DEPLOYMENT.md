@@ -9,7 +9,7 @@ One Node.js app, one domain, no CORS issues in production.
 Hostinger Node.js App
 └── BACKEND/               ← app root on Hostinger
     ├── src/server.js      ← entry point
-    └── ../FRONTEND/dist/  ← built React app served as static files
+    └── public/            ← built React app (already committed to git)
 ```
 
 ---
@@ -45,15 +45,12 @@ git push -u origin main
 
 | Setting | Value |
 |---|---|
-| Node.js version | 18 or 20 (LTS) |
+| Node.js version | 20 (LTS) |
 | Application root | `BACKEND` |
 | Application URL | your domain |
 | Application startup file | `src/server.js` |
 
-3. Set the **build command** (Hostinger runs this once on deploy):
-```
-npm install && npm install --prefix ../FRONTEND && npm run build --prefix ../FRONTEND
-```
+3. **No build command needed** — frontend is already built and committed to git in `BACKEND/public/`
 
 4. Set the **start command**:
 ```
