@@ -2,8 +2,6 @@ const express    = require('express');
 const cors       = require('cors');
 const morgan     = require('morgan');
 const helmet     = require('helmet');
-const path       = require('path');
-const fs         = require('fs');
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 const authRoutes           = require('./routes/authRoutes');
@@ -30,13 +28,17 @@ app.use(helmet({ crossOriginEmbedderPolicy: false }));
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'];
+  : [
+      'http://localhost:5173', 
+      'http://localhost:3000', 
+      'http://localhost:5000',
+      'https://your-frontend-app.vercel.app' // Add your Vercel domain here
+    ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Allow requests with no origin (mobile apps, etc.)
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    if (process.env.NODE_ENV === 'production') return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -63,59 +65,12 @@ app.use('/api/map',              mapRoutes);
 // ── 2. API 404 — unmatched /api/* routes return JSON ─────────────────────────
 app.use('/api', notFound);
 
-// ── 3. Serve React frontend ───────────────────────────────────────────────────
-// Try multiple possible paths for frontend files (local vs Hostinger)
-let publicDir;
-let clientIndex;
-
-// Option 1: Standard path (local development)
-const standardPath = path.join(__dirname, "..", "public");
-// Option 2: Alternative path (some hosting providers)
-const altPath = path.join(__dirname, "public");
-// Option 3: Root level path
-const rootPath = path.join(process.cwd(), "public");
-
-if (fs.existsSync(path.join(standardPath, "index.html"))) {
-  publicDir = standardPath;
-} else if (fs.existsSync(path.join(altPath, "index.html"))) {
-  publicDir = altPath;
-} else if (fs.existsSync(path.join(rootPath, "index.html"))) {
-  publicDir = rootPath;
-} else {
-  publicDir = standardPath; // fallback
-}
-
-clientIndex = path.join(publicDir, "index.html");
-
-console.log("🔧 __dirname:", __dirname);
-console.log("🔧 process.cwd():", process.cwd());
-console.log("📁 Trying paths:");
-console.log("   Standard:", standardPath, "exists:", fs.existsSync(path.join(standardPath, "index.html")));
-console.log("   Alt:", altPath, "exists:", fs.existsSync(path.join(altPath, "index.html")));
-console.log("   Root:", rootPath, "exists:", fs.existsSync(path.join(rootPath, "index.html")));
-console.log("📁 Selected frontend path:", publicDir);
-console.log("📄 index.html path:", clientIndex);
-console.log("📄 index.html exists:", fs.existsSync(clientIndex));
-
-app.use(express.static(publicDir));
-
-app.get("*", (req, res) => {
-  console.log("🌐 SPA fallback for:", req.path);
-  
-  if (fs.existsSync(clientIndex)) {
-    console.log("✅ Sending index.html from:", clientIndex);
-    return res.sendFile(clientIndex);
-  }
-
-  console.error("❌ Could not find index.html at:", clientIndex);
-  console.error("❌ Directory contents:", fs.readdirSync(publicDir).join(", "));
-  
-  return res.status(503).json({
-    message: "Frontend build not found.",
-    lookedFor: clientIndex,
-    publicDir: publicDir,
-    dirExists: fs.existsSync(publicDir),
-    dirContents: fs.existsSync(publicDir) ? fs.readdirSync(publicDir) : "Directory not found"
+// ── 3. Health check endpoint for Render ──────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'QuickBreak API is running',
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development'
   });
 });
 

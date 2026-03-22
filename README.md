@@ -1,79 +1,118 @@
 # QuickBreak
 
-A MERN stack web app for finding motorway service stations in the UK.
+A modern web application for finding motorway service stations across the UK. Built with the MERN stack, QuickBreak helps drivers locate nearby stations, view facilities and amenities, read reviews, and save favorite locations. The app features an integrated voice assistant (Bexxa), interactive maps powered by Mapbox, and comprehensive station data including fuel prices, food options, and accessibility information.
 
-## Project Structure
+## 🌐 Live Demo
+
+**[View Live Application](https://quick-break-backend.onrender.com)**
+
+*Note: Initial load may take 30-60 seconds due to free hosting tier.*
+
+## ✨ Key Features
+
+- **Station Search & Discovery** - Find service stations by location, name, or route
+- **Interactive Maps** - Mapbox integration with real-time location data
+- **Voice Assistant (Bexxa)** - AI-powered conversational interface
+- **User Reviews & Ratings** - Community feedback and station ratings
+- **Saved Stations** - Personal favorites and trip planning
+- **Comprehensive Facility Data** - Fuel, food, amenities, and accessibility details
+- **User Authentication** - Secure login and personalized experience
+- **Guest Access** - Limited functionality without registration
+- **Mobile Responsive** - Optimized for desktop and mobile devices
+
+## 🛠 Tech Stack
+
+**Frontend**
+- React 19 with modern hooks and context
+- Vite for fast development and building
+- Tailwind CSS for responsive styling
+- React Router for navigation
+- Axios for API communication
+
+**Backend**
+- Node.js with Express.js framework
+- MongoDB Atlas for cloud database
+- Mongoose for data modeling
+- JWT authentication with bcrypt
+- RESTful API architecture
+
+**External Services**
+- Mapbox for maps and geocoding
+- TomTom API for additional location data
+- Render for deployment hosting
+
+## 📁 Project Structure
 
 ```
-Quick_Break/
-├── BACKEND/          ← Express + MongoDB API
+QuickBreak/
+├── FRONTEND/                 # React application
 │   ├── src/
-│   ├── package.json
-│   └── .env.example  ← copy to .env and fill in your values
-├── FRONTEND/         ← React + Vite + Tailwind
+│   │   ├── components/       # Reusable UI components
+│   │   ├── pages/           # Application pages/routes
+│   │   ├── api/             # API service layer
+│   │   ├── context/         # React context providers
+│   │   └── hooks/           # Custom React hooks
+│   └── package.json
+│
+├── BACKEND/                  # Express API server
 │   ├── src/
-│   ├── package.json
-│   └── .env.example  ← copy to .env for local dev
-├── .gitignore
-├── README.md
-└── DEPLOYMENT.md
+│   │   ├── controllers/     # Route handlers and business logic
+│   │   ├── models/          # MongoDB schemas and models
+│   │   ├── routes/          # API endpoint definitions
+│   │   ├── middleware/      # Authentication and error handling
+│   │   ├── services/        # External API integrations
+│   │   └── utils/           # Helper functions and utilities
+│   └── package.json
+│
+└── DEPLOYMENT.md            # Deployment documentation
 ```
 
-## Local Development
+## 🚀 How to Run Locally
 
-**1. Clone the repo**
+**Prerequisites:** Node.js 18+, MongoDB Atlas account, Mapbox API key
+
+**1. Clone and Setup**
 ```bash
-git clone https://github.com/YOUR_USERNAME/quick_break.git
-cd quick_break
+git clone <repository-url>
+cd QuickBreak
 ```
 
-**2. Backend setup**
+**2. Backend Setup**
 ```bash
 cd BACKEND
 cp .env.example .env
-# Fill in your real values in .env
+# Configure environment variables in .env
 npm install
 npm run dev
-# Runs on http://localhost:5000
+# Server runs on http://localhost:5000
 ```
 
-**3. Frontend setup**
+**3. Frontend Setup**
 ```bash
 cd FRONTEND
 cp .env.example .env
-# .env already has VITE_API_URL=http://localhost:5000/api
+# VITE_API_URL is pre-configured for local development
 npm install
 npm run dev
-# Runs on http://localhost:5173
+# Application runs on http://localhost:5173
 ```
 
-## Environment Variables
+**4. Environment Configuration**
+Create `BACKEND/.env` with your credentials:
+```env
+MONGO_URL=your_mongodb_atlas_connection_string
+JWT_SECRET=your_secure_random_secret
+MAPBOX_TOKEN=your_mapbox_public_token
+TOMTOM_API_KEY=your_tomtom_api_key
+```
 
-### Backend (`BACKEND/.env`)
+## 🌍 Deployment Summary
 
-| Variable | Description |
-|---|---|
-| `PORT` | Server port (default: 5000) |
-| `NODE_ENV` | `development` or `production` |
-| `MONGO_URI` | MongoDB Atlas connection string |
-| `JWT_SECRET` | Long random secret for JWT signing |
-| `JWT_EXPIRES_IN` | Token expiry e.g. `7d` |
-| `MAPBOX_TOKEN` | Mapbox public access token |
-| `MAPBOX_PROFILE` | `driving` (default) |
-| `TOMTOM_API_KEY` | TomTom key (optional, for seeding) |
-| `SMTP_HOST` | Email host (optional) |
-| `SMTP_PORT` | Email port (optional) |
-| `SMTP_USER` | Email user (optional) |
-| `SMTP_PASS` | Email password (optional) |
+The application uses a full-stack deployment approach:
+- **Hosting**: Render (Node.js web service)
+- **Database**: MongoDB Atlas (cloud database)
+- **Architecture**: Express backend serves React frontend as static files
+- **Domain**: Custom domain with SSL certificate
+- **Environment**: Production-optimized with environment variables
 
-### Frontend (`FRONTEND/.env`)
-
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend API base URL |
-
-In production this is automatically set to `/api` via `FRONTEND/.env.production`.
-
-## Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for full Hostinger deployment steps.
+For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
