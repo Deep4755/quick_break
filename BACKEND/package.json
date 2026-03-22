@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+      "build:frontend": "echo frontend already built",
     "dev": "nodemon src/server.js",
     "test": "jest"
   },
