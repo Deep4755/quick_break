@@ -10,6 +10,8 @@ const ENV  = process.env.NODE_ENV || 'development';
 console.log('🔧 Starting QuickBreak server...');
 console.log(`   NODE_ENV : ${ENV}`);
 console.log(`   PORT     : ${PORT}`);
+console.log(`   __dirname: ${__dirname}`);
+console.log(`   process.cwd(): ${process.cwd()}`);
 console.log(`   MONGO_URL: ${process.env.MONGO_URL ? '✅ set' : '❌ MISSING'}`);
 console.log(`   JWT_SECRET: ${process.env.JWT_SECRET ? '✅ set' : '❌ MISSING'}`);
 

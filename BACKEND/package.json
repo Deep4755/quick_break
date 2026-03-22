@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "debug-paths": "node debug-paths.js",
     "dev": "nodemon src/server.js",
     "test": "jest"
   },

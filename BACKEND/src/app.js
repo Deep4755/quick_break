@@ -64,26 +64,58 @@ app.use('/api/map',              mapRoutes);
 app.use('/api', notFound);
 
 // ── 3. Serve React frontend ───────────────────────────────────────────────────
-// Hostinger deploys BACKEND folder contents to:
-//   /home/u391028941/domains/codebydeep.codebydeep.co.uk/
-// So BACKEND/public is at that root — __dirname is .../src, ../public is correct
-const publicDir = path.resolve(__dirname, "../public");
-const clientIndex = path.join(publicDir, "index.html");
+// Try multiple possible paths for frontend files (local vs Hostinger)
+let publicDir;
+let clientIndex;
 
-console.log("📁 Serving frontend from:", publicDir);
+// Option 1: Standard path (local development)
+const standardPath = path.join(__dirname, "..", "public");
+// Option 2: Alternative path (some hosting providers)
+const altPath = path.join(__dirname, "public");
+// Option 3: Root level path
+const rootPath = path.join(process.cwd(), "public");
+
+if (fs.existsSync(path.join(standardPath, "index.html"))) {
+  publicDir = standardPath;
+} else if (fs.existsSync(path.join(altPath, "index.html"))) {
+  publicDir = altPath;
+} else if (fs.existsSync(path.join(rootPath, "index.html"))) {
+  publicDir = rootPath;
+} else {
+  publicDir = standardPath; // fallback
+}
+
+clientIndex = path.join(publicDir, "index.html");
+
+console.log("🔧 __dirname:", __dirname);
+console.log("🔧 process.cwd():", process.cwd());
+console.log("📁 Trying paths:");
+console.log("   Standard:", standardPath, "exists:", fs.existsSync(path.join(standardPath, "index.html")));
+console.log("   Alt:", altPath, "exists:", fs.existsSync(path.join(altPath, "index.html")));
+console.log("   Root:", rootPath, "exists:", fs.existsSync(path.join(rootPath, "index.html")));
+console.log("📁 Selected frontend path:", publicDir);
+console.log("📄 index.html path:", clientIndex);
 console.log("📄 index.html exists:", fs.existsSync(clientIndex));
 
 app.use(express.static(publicDir));
 
 app.get("*", (req, res) => {
+  console.log("🌐 SPA fallback for:", req.path);
+  
   if (fs.existsSync(clientIndex)) {
+    console.log("✅ Sending index.html from:", clientIndex);
     return res.sendFile(clientIndex);
   }
 
-  console.error("❌ Could not send index.html:", clientIndex);
+  console.error("❌ Could not find index.html at:", clientIndex);
+  console.error("❌ Directory contents:", fs.readdirSync(publicDir).join(", "));
+  
   return res.status(503).json({
     message: "Frontend build not found.",
-    lookedFor: clientIndex
+    lookedFor: clientIndex,
+    publicDir: publicDir,
+    dirExists: fs.existsSync(publicDir),
+    dirContents: fs.existsSync(publicDir) ? fs.readdirSync(publicDir) : "Directory not found"
   });
 });
 
