@@ -25,7 +25,21 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 
 // ── Security ──────────────────────────────────────────────────────────────────
-app.use(helmet({ crossOriginEmbedderPolicy: false }));
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:     ["'self'"],
+      scriptSrc:      ["'self'", "'unsafe-eval'", "'unsafe-inline'", "https://api.tomtom.com", "https://fonts.googleapis.com"],
+      styleSrc:       ["'self'", "'unsafe-inline'", "https://api.tomtom.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+      fontSrc:        ["'self'", "https://fonts.gstatic.com", "https://api.tomtom.com"],
+      imgSrc:         ["'self'", "data:", "blob:", "https://api.tomtom.com", "https://*.tomtom.com"],
+      connectSrc:     ["'self'", "https://api.tomtom.com", "https://*.tomtom.com"],
+      workerSrc:      ["'self'", "blob:"],
+      childSrc:       ["blob:"],
+    },
+  },
+}));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.CORS_ORIGIN
