@@ -1,0 +1,9 @@
+{
+  "name": "quickbreak",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd FRONTEND && npm install && npm run build && cp -r dist/. ../BACKEND/public/",
+    "start": "node BACKEND/src/server.js",
+    "install-all": "npm install --prefix BACKEND && npm install --prefix FRONTEND"
+  }
+}
