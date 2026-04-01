@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "build": "cd ../FRONTEND && npm install && npm run build && cp -r dist/. ../BACKEND/public/",
     "test": "jest"
   },
   "engines": {
