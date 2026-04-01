@@ -108,18 +108,31 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-200 px-6 py-4 space-y-3 bg-white">
-          <NavLink to="/" className={({ isActive }) => `block text-sm font-medium ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)} end>Home</NavLink>
-          <NavLink to="/nearby" className={({ isActive }) => `block text-sm font-medium ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)}>Nearby</NavLink>
-          <NavLink to={isLoggedIn ? "/reports/create" : "/login"} className={({ isActive }) => `block text-sm font-medium ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)}>Create Report</NavLink>
-          <NavLink to="/saved" className={({ isActive }) => `block text-sm font-medium ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)}>Saved Stations</NavLink>
-          <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 8, marginTop: 4 }}>
-            <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "#9ca3af" }}>MORE</p>
-            <NavLink to="/bexxa-assistant" className={({ isActive }) => `block text-sm font-medium mb-2 ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)}>Bexxa AI Assistant</NavLink>
-            <NavLink to="/station-reviews" className={({ isActive }) => `block text-sm font-medium mb-2 ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)}>Station Reviews</NavLink>
-            <NavLink to="/help-center"     className={({ isActive }) => `block text-sm font-medium mb-2 ${isActive ? "text-[#16a34a]" : "text-[#6b7280]"}`} onClick={() => setMobileOpen(false)}>Help Center</NavLink>
-          </div>
-          <button onClick={handleLogout} className="block text-sm font-medium text-[#6b7280]">
+        <div className="md:hidden border-t border-gray-200 bg-white">
+          {[
+            { to: "/", label: "Home", end: true },
+            { to: "/nearby", label: "Nearby" },
+            { to: isLoggedIn ? "/reports/create" : "/login", label: "Create Report" },
+            { to: "/saved", label: "Saved Stations" },
+            { to: "/bexxa-assistant", label: "Bexxa Assistant" },
+            { to: "/help-center", label: "Help Center" },
+          ].map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `flex items-center px-6 py-4 text-sm font-medium border-b border-gray-100 ${isActive ? "text-[#16a34a] bg-green-50" : "text-[#374151]"}`
+              }
+              onClick={() => setMobileOpen(false)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+          <button
+            onClick={() => { handleLogout(); setMobileOpen(false); }}
+            className="flex items-center w-full px-6 py-4 text-sm font-medium text-[#6b7280]"
+          >
             {isGuest ? "Login" : "Logout"}
           </button>
         </div>

@@ -1,56 +1,12 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function StationCard({ station, onClick, selectedFacilities = [], onFacilityToggle }) {
+  const navigate = useNavigate();
 
-  const getUserCoords = (timeoutMs = 3000) =>
-    new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      let settled = false;
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        resolve(null);
-      }, timeoutMs);
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        },
-        () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(null);
-        },
-        { enableHighAccuracy: false, timeout: timeoutMs }
-      );
-    });
-
-  const handleNavigate = async (e) => {
+  const handleNavigate = (e) => {
     e.stopPropagation();
-    const coords = station.location?.coordinates;
-    if (!coords) return;
-    const stationLat = Number(coords[1]);
-    const stationLng = Number(coords[0]);
-
-    try {
-      const user = await getUserCoords(3000);
-      if (user) {
-        const origin = `${user.latitude},${user.longitude}`;
-        const dest = `${stationLat},${stationLng}`;
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else {
-        const url = `https://www.google.com/maps/search/?api=1&query=${stationLat},${stationLng}`;
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-    } catch (err) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${stationLat},${stationLng}`;
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    navigate("/navigate", { state: { station, userLocation: null } });
   };
   const handleKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {

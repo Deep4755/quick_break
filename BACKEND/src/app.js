@@ -77,7 +77,31 @@ console.log('📄 index.html exists:', fs.existsSync(clientIndex));
 app.use(express.static(publicDir));
 
 // ── 4. SPA fallback — send index.html for all non-API routes ─────────────────
-app.get('*', (req, res) => {
+// Handle root route
+app.get('/', (req, res) => {
+  if (fs.existsSync(clientIndex)) {
+    return res.sendFile(clientIndex);
+  }
+  
+  console.error('❌ Frontend build not found at:', clientIndex);
+  return res.status(503).json({
+    message: 'Frontend build not found. Please build the frontend first.',
+    lookedFor: clientIndex
+  });
+});
+
+// Handle all other non-API routes for SPA
+app.use((req, res, next) => {
+  // Skip if it's an API route (already handled above)
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  
+  // Skip if it's a static file request
+  if (req.path.includes('.')) {
+    return next();
+  }
+  
   if (fs.existsSync(clientIndex)) {
     return res.sendFile(clientIndex);
   }

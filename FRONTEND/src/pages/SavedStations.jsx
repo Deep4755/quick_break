@@ -20,13 +20,19 @@ function timeAgo(dateStr) {
   return `Saved ${months} month${months !== 1 ? "s" : ""} ago`;
 }
 
-function openMaps(station) {
+function openMaps(station, navigate) {
+  // Build a minimal station object NavigationPage expects
   const { lat, lng } = station.coordinates || {};
-  if (lat && lng) {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener");
-  } else if (station.address) {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(station.address)}`, "_blank", "noopener");
-  }
+  const stationObj = {
+    _id: station.stationId,
+    name: station.name,
+    operator: station.brand || "",
+    motorway: station.motorway || "",
+    address: station.address || "",
+    facilities: station.amenities || [],
+    location: lat && lng ? { coordinates: [lng, lat] } : null,
+  };
+  navigate("/navigate", { state: { station: stationObj, userLocation: null } });
 }
 
 const AMENITY_LABELS = {
@@ -165,7 +171,7 @@ function SavedStationCard({ station, onRemove, removing, navigate }) {
           View Details
         </button>
         <button
-          onClick={() => openMaps(station)}
+          onClick={() => openMaps(station, navigate)}
           className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
           style={{ background: "#f5f7f5", border: "1px solid #e5e7eb", color: "#374151" }}
           onMouseEnter={(e) => e.currentTarget.style.background = "#e9ecef"}
@@ -486,7 +492,7 @@ export default function SavedStations() {
                       View Details
                     </button>
                     <button
-                      onClick={() => openMaps(s)}
+                      onClick={() => openMaps(s, navigate)}
                       className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                       style={{ background: "#f5f7f5", border: "1px solid #e5e7eb", color: "#374151" }}
                     >

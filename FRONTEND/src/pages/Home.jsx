@@ -113,7 +113,7 @@ function GuestModal({ onClose, onSignIn }) {
             {[
               { icon: "📍", title: "Browse nearby stations", desc: "Find service stations near your location" },
               { icon: "📊", title: "View station details",   desc: "See amenities, ratings, and reviews" },
-              { icon: "💬", title: "Use Bexxa AI assistant", desc: "Get instant help and recommendations" },
+              { icon: "💬", title: "Use Bexxa assistant", desc: "Voice-enabled assistant for hands-free navigation" },
             ].map((item) => (
               <div
                 key={item.title}
@@ -290,7 +290,7 @@ export default function Home() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="#1a7a4a"/>
               </svg>
-              <span className="text-sm font-semibold" style={{ color: "#1a1a1a" }}>Bexxa AI Assistant</span>
+              <span className="text-sm font-semibold" style={{ color: "#1a1a1a" }}>Bexxa Assistant</span>
             </div>
 
             <BexxaVoiceAssistant mode="home" />
@@ -419,10 +419,7 @@ export default function Home() {
                         View Details
                       </button>
                       <button
-                        onClick={() => {
-                          if (lat && lng)
-                            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener");
-                        }}
+                        onClick={() => navigate("/navigate", { state: { station: s, userLocation: null } })}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                         style={{ background: "#f5f7f5", border: "1px solid #e5e7eb", color: "#4b5563" }}
                         onMouseEnter={(e) => e.currentTarget.style.color = "#1a1a1a"}

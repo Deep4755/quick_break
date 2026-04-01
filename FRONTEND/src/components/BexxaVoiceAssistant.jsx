@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import stationApi from "../api/stationApi";
 
 // ─── Wake phrases (all Chrome mishearings of "Hey Bexxa") ─────────────────────
 const WAKE_PHRASES = [
@@ -271,39 +272,30 @@ export default function BexxaVoiceAssistant({ mode, onReportData }) {
     setStatusSync("processing");
     setMapsUrl(null);
 
-    // Go home
+    // ── Navigation shortcuts ───────────────────────────────────────────────
     if (t.includes("go home") || t === "home") {
-      navigate("/");
-      showResult("Going home."); return;
+      navigate("/"); showResult("Going home."); return;
+    }
+    if (t.includes("open nearby") || t.includes("show nearby")) {
+      navigate("/nearby"); showResult("Opening nearby stations."); return;
+    }
+    if ((t.includes("create report") || t.includes("open report") || t.includes("new report")) && !extractStationName(clean)) {
+      navigate("/reports/create"); showResult("Opening create report."); return;
     }
 
-    // Open nearby page
-    if (t.includes("open nearby") || t.includes("show nearby") || t.includes("show stations")) {
-      navigate("/nearby");
-      showResult("Opening nearby stations."); return;
-    }
-
-    // Open create report (no station)
-    if ((t.includes("create report") || t.includes("open report") || t.includes("new report"))
-        && !extractStationName(clean)) {
-      navigate("/reports/create");
-      showResult("Opening create report."); return;
-    }
-
-    // Directions — use last found station
-    if (t.includes("direction") || t.includes("navigate") || t.includes("open map") || t.includes("take me there")) {
+    // ── Navigate to last found station ────────────────────────────────────
+    if (t.includes("direction") || t.includes("navigate") || t.includes("take me there") || t.includes("open map")) {
       if (lastStation) {
-        const url = buildMapsUrl(lastStation, userCoordsRef.current);
-        if (url) { showResult("Tap Open in Maps to navigate to " + lastStation.name + ".", url, lastStation); }
-        else     { showError("No coordinates for that station."); }
+        navigate("/navigate", { state: { station: lastStation, userLocation: userCoordsRef.current } });
+        showResult("Opening navigation to " + lastStation.name + ".", null, lastStation);
       } else {
-        showError("No station selected. Try: find nearest station first.");
+        showError("No station selected yet. Try: find nearest station first.");
       }
       return;
     }
 
-    // View details — use last found station
-    if (t.includes("detail") || t.includes("show detail") || t.includes("tell me more")) {
+    // ── View details ──────────────────────────────────────────────────────
+    if (t.includes("detail") || t.includes("tell me more") || t.includes("show detail")) {
       if (lastStation) {
         navigate("/stations/" + lastStation._id);
         showResult("Opening details for " + lastStation.name + ".");
@@ -313,57 +305,134 @@ export default function BexxaVoiceAssistant({ mode, onReportData }) {
       return;
     }
 
-    // Find EV charging — go to nearby page
-    if (t.includes("ev charging") || t.includes("electric") || t.includes("ev charger") || t.includes("charge my car")) {
-      navigate("/nearby");
-      speak("Here you go! Do you need any more help?");
-      showResult("Here you go! Opening nearby stations."); return;
+    // ── Detect facility intent ─────────────────────────────────────────────
+    const wantEV      = t.includes("ev") || t.includes("electric") || t.includes("charger") || t.includes("charge");
+    const wantFuel    = t.includes("fuel") || t.includes("petrol") || t.includes("diesel") || t.includes("gas");
+    const wantFood    = t.includes("food") || t.includes("eat") || t.includes("restaurant") || t.includes("cafe");
+    const wantToilet  = t.includes("toilet") || t.includes("bathroom") || t.includes("restroom") || t.includes("loo");
+    const wantCoffee  = t.includes("coffee") || t.includes("starbucks") || t.includes("costa");
+    const wantParking = t.includes("parking") || t.includes("park");
+
+    const facilityMap = { ev: wantEV, fuel: wantFuel, food: wantFood, toilets: wantToilet, coffee: wantCoffee, parking: wantParking };
+    const requestedFacilities = Object.entries(facilityMap).filter(([,v]) => v).map(([k]) => k);
+
+    // ── Station search (find nearest / by facility / by brand) ────────────
+    const isSearchIntent =
+      t.includes("find") || t.includes("nearest") || t.includes("nearby") ||
+      t.includes("closest") || t.includes("show me") || t.includes("where") ||
+      requestedFacilities.length > 0;
+
+    if (isSearchIntent) {
+      const coords = userCoordsRef.current;
+      if (!coords) {
+        showError("I need your location. Please allow location access and try again.");
+        return;
+      }
+
+      setResponse("Searching nearby stations…");
+
+      try {
+        const results = await stationApi.nearbyByFacility(
+          coords.lat, coords.lng,
+          requestedFacilities.length ? requestedFacilities : [],
+          50
+        );
+
+        if (!results || results.length === 0) {
+          const facilityLabel = requestedFacilities.length ? requestedFacilities.join(", ") : "service stations";
+          showError(`No ${facilityLabel} found nearby. Try increasing your search radius.`);
+          return;
+        }
+
+        const nearest = results[0];
+        const distKm  = nearest.distanceKm?.toFixed(1) || "?";
+        const facilityLabel = requestedFacilities.length
+          ? requestedFacilities.join(" & ")
+          : "service station";
+
+        let msg = `Found ${results.length} station${results.length > 1 ? "s" : ""} nearby.`;
+        if (requestedFacilities.length) msg = `Found ${results.length} station${results.length > 1 ? "s" : ""} with ${facilityLabel}.`;
+        msg += ` Nearest is ${nearest.name}`;
+        if (nearest.operator) msg += ` (${nearest.operator})`;
+        msg += `, ${distKm} km away.`;
+
+        showResult(msg, null, nearest);
+        navigate("/nearby");
+
+      } catch (err) {
+        console.error("[Bexxa] Search error:", err);
+        const status = err?.response?.status;
+        if (!err.response) {
+          showError("Cannot reach server. Make sure the backend is running.");
+        } else if (status === 400) {
+          showError("Location error. Please allow location access and try again.");
+        } else {
+          // Fallback: just open nearby page
+          navigate("/nearby");
+          showResult("Opening nearby stations. Check the list for " + (requestedFacilities[0] || "stations") + ".");
+        }
+      }
+      return;
     }
 
-    // Find nearest / nearby — go to nearby page
-    if (t.includes("nearby") || t.includes("nearest") || t.includes("find station") ||
-        t.includes("closest") || t.includes("find me a station")) {
-      navigate("/nearby");
-      speak("Here you go! Do you need any more help?");
-      showResult("Here you go! Opening nearby stations."); return;
-    }
-
-    // Brand search — go to nearby page
-    const brandMatch = t.match(/find\s+(shell|bp|esso|texaco|moto|welcome break|roadchef|extra)/i);
+    // ── Brand search ──────────────────────────────────────────────────────
+    const brandMatch = t.match(/\b(shell|bp|esso|texaco|moto|welcome break|roadchef|extra|westmorland)\b/i);
     if (brandMatch) {
-      navigate("/nearby");
-      speak("Here you go! Do you need any more help?");
-      showResult("Here you go! Opening nearby stations."); return;
+      const coords = userCoordsRef.current;
+      if (coords) {
+        setResponse(`Searching for ${brandMatch[1]} stations…`);
+        try {
+          const results = await stationApi.nearbyByFacility(coords.lat, coords.lng, [], 100);
+          const branded = results.filter(s => s.operator?.toLowerCase().includes(brandMatch[1].toLowerCase()) || s.name?.toLowerCase().includes(brandMatch[1].toLowerCase()));
+          if (branded.length) {
+            const nearest = branded[0];
+            showResult(`Found ${branded.length} ${brandMatch[1]} station${branded.length > 1 ? "s" : ""}. Nearest is ${nearest.name}, ${nearest.distanceKm?.toFixed(1) || "?"} km away.`, null, nearest);
+          } else {
+            showResult(`No ${brandMatch[1]} stations found nearby. Showing all stations.`, null, results[0]);
+          }
+          navigate("/nearby");
+        } catch { navigate("/nearby"); showResult(`Opening nearby stations.`); }
+      } else {
+        navigate("/nearby"); showResult(`Opening nearby stations.`);
+      }
+      return;
     }
 
-    // Report with data
-    const isReport = t.includes("report") || t.includes("stars") || t.includes("out of") ||
-                     t.includes("rating") || t.includes("busy") || t.includes("parking");
+    // ── Conversational / info questions ──────────────────────────────────
+    if (t.includes("what") || t.includes("how") || t.includes("when") || t.includes("which") || t.includes("tell me") || t.includes("help")) {
+      const responses = {
+        "what can you do": "I can find nearby stations, search for EV chargers or fuel, navigate to stations, and help you create reports. Just say what you need!",
+        "how do i": "Just tell me what you're looking for! Say 'find EV chargers near me', 'navigate to Heston Services', or 'create a report'.",
+        "help": "Say 'find nearest station', 'find EV charging near me', 'find fuel near me', 'navigate to [station name]', or 'create report'.",
+        "what stations": lastStation ? `The last station I found was ${lastStation.name}. Say 'navigate' to go there or 'details' for more info.` : "Say 'find nearest station' and I'll search for you!",
+      };
+      const matched = Object.entries(responses).find(([k]) => t.includes(k));
+      if (matched) { showResult(matched[1]); return; }
+      showResult("I can find stations, EV chargers, fuel, and navigate for you. What do you need?");
+      return;
+    }
+
+    // ── Report with data ──────────────────────────────────────────────────
+    const isReport = t.includes("report") || t.includes("stars") || t.includes("out of") || t.includes("rating") || t.includes("busy");
     if (isReport) {
-      const stationName       = extractStationName(clean);
-      const cleanlinessRating = extractRating(t);
-      const busyLevel         = extractBusyLevel(t);
-      const parkingStatus     = extractParkingStatus(t);
-      const evStatus          = extractEvStatus(t);
-      const comment           = extractComment(clean);
+      const stationName = extractStationName(clean);
       const data = {};
-      if (stationName)       data.stationName       = stationName;
-      if (cleanlinessRating) data.cleanlinessRating = cleanlinessRating;
-      if (busyLevel)         data.busyLevel         = busyLevel;
-      if (parkingStatus)     data.parkingStatus     = parkingStatus;
-      if (evStatus)          data.evStatus          = evStatus;
-      if (comment)           data.comment           = comment;
+      const r = extractRating(t); const b = extractBusyLevel(t); const p = extractParkingStatus(t); const e = extractEvStatus(t); const c = extractComment(clean);
+      if (stationName) data.stationName = stationName;
+      if (r) data.cleanlinessRating = r;
+      if (b) data.busyLevel = b;
+      if (p) data.parkingStatus = p;
+      if (e) data.evStatus = e;
+      if (c) data.comment = c;
       if (Object.keys(data).length) {
         if (reportCbRef.current) reportCbRef.current(data);
-        if (!window.location.pathname.includes("/reports/create")) {
-          navigate("/reports/create", { state: { bexxaData: data } });
-        }
-        showResult("Form filled. Please review and submit."); return;
+        if (!window.location.pathname.includes("/reports/create")) navigate("/reports/create", { state: { bexxaData: data } });
+        showResult("Report form filled. Please review and submit."); return;
       }
     }
 
-    // Help / fallback
-    showError("Try: find nearest station, find EV charging, directions, create report, or go home.");
+    // ── Fallback ──────────────────────────────────────────────────────────
+    showError("I didn't understand that. Try: 'find EV chargers near me', 'find fuel', 'navigate to Heston', or 'help'.");
   }
 
   // ── Wake word listening ────────────────────────────────────────────────────
@@ -608,6 +677,11 @@ export default function BexxaVoiceAssistant({ mode, onReportData }) {
             ? (isListeningWake ? 'Say "Hey Bexxa" to start' : "Tap mic for manual command")
             : "Tap mic or enable hands-free above"}
         </p>
+        
+        {/* Helper text */}
+        <p className="text-xs text-center mb-3 px-2" style={{ color:"#6b7280" }}>
+          Bexxa uses voice commands to help you find nearby stations quickly and safely.
+        </p>
 
         <StatusChip status={status}/>
 
@@ -620,17 +694,17 @@ export default function BexxaVoiceAssistant({ mode, onReportData }) {
           </div>
         )}
 
-        {/* Open in Maps button */}
-        {mapsUrl && (
-          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+        {/* Navigate in-app button */}
+        {mapsUrl && lastStation && (
+          <button type="button"
+            onClick={() => navigate("/navigate", { state: { station: lastStation, userLocation: userCoordsRef.current ? { lat: userCoordsRef.current.lat, lng: userCoordsRef.current.lng } : null } })}
             className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
-            style={{ background:"linear-gradient(135deg,#1a7a4a,#22a05e)", textDecoration:"none" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="white"/>
-              <circle cx="12" cy="9" r="2.5" fill="#1a7a4a"/>
+            style={{ background:"linear-gradient(135deg,#1a7a4a,#22a05e)" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M3 11l19-9-9 19-2-8-8-2z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Open in Google Maps
-          </a>
+            Navigate
+          </button>
         )}
 
         {/* Quick action buttons when a station is found */}

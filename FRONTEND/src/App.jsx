@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Nearby from "./pages/Nearby";
 import StationDetails from "./pages/StationDetails";
+import NavigationPage from "./pages/NavigationPage";
 import NotFound from "./pages/NotFound";
 import ProtectRoute from "./components/ProtectRoute";
 import CreateReport from "./pages/CreateReport";
@@ -37,6 +38,9 @@ export default function App() {
         } />
         <Route path="/stations/:id" element={
           <ProtectRoute requireAuth={false}><StationDetails /></ProtectRoute>
+        } />
+        <Route path="/navigate" element={
+          <ProtectRoute requireAuth={false}><NavigationPage /></ProtectRoute>
         } />
 
         {/* Logged-in only routes */}

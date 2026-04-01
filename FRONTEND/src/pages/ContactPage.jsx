@@ -67,7 +67,7 @@ const SUBJECTS = [
   "Saved Stations Issue",
   "Report Problem",
   "Review Issue",
-  "Bexxa AI Assistant",
+  "Bexxa Assistant",
   "Feedback",
   "Other",
 ];

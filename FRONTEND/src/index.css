@@ -19,6 +19,9 @@
 
 * { box-sizing: border-box; }
 
+/* Prevent horizontal overflow globally */
+html, body { overflow-x: hidden; max-width: 100vw; }
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-base);
@@ -63,6 +66,7 @@ body {
   border: none;
   cursor: pointer;
   transition: opacity 0.15s;
+  min-height: 44px; /* thumb-friendly */
 }
 .qb-btn-primary:hover { opacity: 0.9; }
 .qb-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -78,6 +82,7 @@ body {
   border: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.15s;
+  min-height: 44px;
 }
 .qb-btn-secondary:hover { background: var(--bg-panel); }
 
@@ -87,6 +92,61 @@ body {
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+/* ── Mobile-first responsive helpers ─────────────────────────────────────── */
+
+/* Navigation page: left panel stacks below map on mobile */
+.nav-page-layout {
+  position: relative;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+  background: #e8eaed;
+}
+
+/* On mobile: panel slides up from bottom as a sheet */
+.nav-panel {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 320px;
+  z-index: 20;
+  background: #fff;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .nav-page-layout {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 56px);
+    overflow: visible;
+  }
+  .nav-map-container {
+    position: relative !important;
+    width: 100% !important;
+    height: 55vw !important;
+    min-height: 240px !important;
+    max-height: 320px !important;
+    flex-shrink: 0;
+  }
+  .nav-panel {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
+/* Thumb-friendly tap targets */
+@media (max-width: 640px) {
+  button { min-height: 44px; }
+  select { min-height: 44px; font-size: 16px; } /* prevent iOS zoom */
+  input  { font-size: 16px; } /* prevent iOS zoom */
 }
 
 /* Ripple / ping animation for Bexxa wake-word rings */

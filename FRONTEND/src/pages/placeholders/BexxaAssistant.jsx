@@ -4,9 +4,9 @@ import PlaceholderPage from "./PlaceholderPage";
 export default function BexxaAssistant() {
   return (
     <PlaceholderPage
-      emoji="🤖"
-      title="Bexxa AI Assistant"
-      subtitle="Bexxa is your intelligent motorway companion. Ask about nearby stations, facilities, and live conditions. Coming soon."
+      emoji="🎤"
+      title="Bexxa Assistant"
+      subtitle="Bexxa uses voice commands to help you find nearby stations quickly and safely. Use simple voice commands like 'find nearby stations' or 'create report for Heston Services'."
     />
   );
 }

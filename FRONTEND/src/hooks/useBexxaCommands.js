@@ -200,7 +200,7 @@ export function useBexxaCommands({ navigate, onReportData }) {
     }
 
     setCmdState("error");
-    setStatusMsg("Command not recognised");
+    setStatusMsg("Command not recognized");
     speak("Sorry, I didn't understand. Try: find nearby stations, create report, or go home.");
   }, [speak]); // only depends on speak (stable)
 
@@ -215,18 +215,18 @@ export function useBexxaCommands({ navigate, onReportData }) {
     try { recognitionRef.current?.abort(); } catch (_) {}
     recognitionRef.current = null;
 
-    const recog = new SR();
-    recog.lang            = "en-US";
-    recog.continuous      = false;
-    recog.interimResults  = false;
-    recog.maxAlternatives = 1;
+    const recognition = new SR();
+    recognition.lang            = "en-US";
+    recognition.continuous      = false;
+    recognition.interimResults  = false;
+    recognition.maxAlternatives = 1;
 
-    recog.onstart = () => {
+    recognition.onstart = () => {
       setCmdState("listening");
       setStatusMsg("Listening for command...");
     };
 
-    recog.onresult = (ev) => {
+    recognition.onresult = (ev) => {
       const text = Array.from(ev.results)
         .map((r) => r[0].transcript)
         .join(" ")
@@ -236,11 +236,11 @@ export function useBexxaCommands({ navigate, onReportData }) {
       processRef.current?.(text);
     };
 
-    recog.onend = () => {
+    recognition.onend = () => {
       setCmdState((s) => (s === "listening" ? "idle" : s));
     };
 
-    recog.onerror = (ev) => {
+    recognition.onerror = (ev) => {
       const err = ev?.error;
       if (err === "not-allowed") {
         setCmdState("error"); setStatusMsg("Mic permission denied.");
@@ -251,9 +251,9 @@ export function useBexxaCommands({ navigate, onReportData }) {
       }
     };
 
-    recognitionRef.current = recog;
+    recognitionRef.current = recognition;
     setTranscript("");
-    try { recog.start(); } catch (_) {}
+    try { recognition.start(); } catch (_) {}
   }, []); // no deps — uses refs only, stable identity
 
   // ── stopCommandListening ──────────────────────────────────────────────────

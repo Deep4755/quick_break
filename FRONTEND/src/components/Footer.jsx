@@ -73,7 +73,7 @@ export default function Footer() {
           <div>
             <p className="text-sm font-semibold text-[#111827] mb-4">Features</p>
             <ul className="space-y-2.5">
-              <li><Link to="/bexxa-assistant" className={linkCls}>Bexxa AI Assistant</Link></li>
+              <li><Link to="/bexxa-assistant" className={linkCls}>Bexxa Assistant</Link></li>
               <li><Link to="/station-reviews" className={linkCls}>Station Reviews</Link></li>
               <li><Link to="/guest-access" className={linkCls}>Guest Access</Link></li>
               <li><Link to="/saved" className={linkCls}>Saved Stations</Link></li>

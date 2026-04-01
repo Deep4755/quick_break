@@ -288,13 +288,13 @@ export default function BexxaAssistantPage() {
               style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#16a34a"/></svg>
-              AI-Powered Assistant
+              Voice Assistant
             </span>
             <h1 className="text-4xl font-extrabold mb-4 leading-tight" style={{ color: "#111827" }}>
               Meet Bexxa
             </h1>
             <p className="text-base leading-relaxed mb-8" style={{ color: "#4b5563", maxWidth: 440 }}>
-              {pageData?.heroSubtitle || "Your smart travel assistant for motorway service stations. Ask questions, find stations, and plan your journey—all with your voice."}
+              {pageData?.heroSubtitle || "Your hands-free voice assistant for motorway service stations. Use simple voice commands to find stations, create reports, and navigate safely."}
             </p>
             <div className="flex flex-wrap gap-3">
               <button
@@ -397,7 +397,7 @@ export default function BexxaAssistantPage() {
             {pageData?.ctaTitle || "Ready to try Bexxa?"}
           </h2>
           <p className="text-sm text-green-100 mb-8">
-            {pageData?.ctaText || "Start exploring motorway service stations with your AI assistant today."}
+            {pageData?.ctaText || "Start exploring motorway service stations with your hands-free voice assistant today."}
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <button

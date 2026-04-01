@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import stationApi from "../api/stationApi";
 import { useAuth } from "../context/AuthContext";
+import TomTomMap from "../components/TomTomMap";
 
 function Loading() {
   return (
@@ -19,23 +20,20 @@ export default function StationDetails() {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
+  const [userLocation, setUserLocation] = useState(null);
+
+  // Get user location for map
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}, // silently ignore — map still works without it
+      { enableHighAccuracy: false, timeout: 6000 }
+    );
+  }, []);
 
   const handleNavigate = () => {
-    const coords = station?.location?.coordinates;
-    if (!coords) return;
-    const [lng, lat] = coords;
-    if (!navigator.geolocation) {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${pos.coords.latitude},${pos.coords.longitude}&destination=${lat},${lng}&travelmode=driving`;
-        window.open(url, "_blank", "noopener");
-      },
-      () => window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener"),
-      { timeout: 3000 }
-    );
+    navigate("/navigate", { state: { station, userLocation } });
   };
 
   useEffect(() => {
@@ -44,7 +42,14 @@ export default function StationDetails() {
     setError("");
     stationApi.details(id)
       .then((data) => setStation(data))
-      .catch((err) => setError(err?.response?.data?.message || "Failed to load station"))
+      .catch((err) => {
+        const status = err?.response?.status;
+        if (status === 404) {
+          setError("Station not found. It may have been removed.");
+        } else {
+          setError(err?.response?.data?.message || "Failed to load station details.");
+        }
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -60,8 +65,15 @@ export default function StationDetails() {
     <div style={{ background: "#f0f4f0" }}>
       <div className="max-w-3xl mx-auto px-6 py-10">
         {error ? (
-          <div className="rounded-xl px-4 py-3 text-sm" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#dc2626" }}>
-            {error}
+          <div className="text-center py-16 rounded-2xl" style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}>
+            <p className="text-4xl mb-3">📍</p>
+            <p className="text-lg font-semibold mb-1" style={{ color: "#1a1a1a" }}>
+              {error.includes("not found") ? "Station not found" : "Something went wrong"}
+            </p>
+            <p className="text-sm mb-5" style={{ color: "#4b5563" }}>{error}</p>
+            <button onClick={() => navigate("/nearby")} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #1a7a4a, #22a05e)" }}>
+              Back to Nearby
+            </button>
           </div>
         ) : (
           <>
@@ -98,8 +110,23 @@ export default function StationDetails() {
               )}
             </div>
 
-            {(station?.facilities || []).length > 0 && (
-              <div className="rounded-2xl p-5 mb-5" style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}>
+            {/* Map */}
+            {station?.location?.coordinates && (() => {
+              const [lng, lat] = station.location.coordinates;
+              return (
+                <div className="rounded-2xl overflow-hidden mb-5" style={{ border: "1px solid #e5e7eb" }}>
+                  <TomTomMap
+                    center={{ lat, lng }}
+                    zoom={14}
+                    stations={[station]}
+                    userLocation={userLocation}
+                    height="300px"
+                  />
+                </div>
+              );
+            })()}
+
+            {(station?.facilities || []).length > 0 && (              <div className="rounded-2xl p-5 mb-5" style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}>
                 <h3 className="text-sm font-semibold mb-3" style={{ color: "#1a1a1a" }}>Facilities</h3>
                 <div className="flex flex-wrap gap-2">
                   {station.facilities.map((f) => (
