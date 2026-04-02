@@ -63,6 +63,16 @@ exports.calculateRoute = async ({ fromLat, fromLng, toLat, toLng }) => {
     )];
     const viaLabel = roadNames.length ? roadNames.join(", ") : (idx === 0 ? "Fastest route" : `Route ${idx + 1}`);
 
+    // Extract turn-by-turn steps (first 6 meaningful ones)
+    const steps = instructions
+      .filter(i => i.message && i.message.trim())
+      .slice(0, 6)
+      .map(i => ({
+        message: i.message,
+        roadNumber: i.roadNumbers?.[0] || null,
+        maneuver: i.maneuver || null,
+      }));
+
     return {
       index: idx,
       distanceMeters: route.summary.lengthInMeters,
@@ -71,6 +81,7 @@ exports.calculateRoute = async ({ fromLat, fromLng, toLat, toLng }) => {
       viaLabel,
       isFastest: idx === 0,
       geometry: allPoints,   // [{ latitude, longitude }, ...]
+      steps,
     };
   });
 
